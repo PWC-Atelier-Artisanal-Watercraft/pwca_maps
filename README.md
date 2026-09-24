@@ -1,0 +1,55 @@
+# pwca_maps: offline map packs
+
+Build recipe for the offline North American water and shoreline map data used on our helm display: coastlines,
+lakes, reservoirs and rivers. Riders see where they are without a network connection.
+
+The map packs are a **Derivative Database of OpenStreetMap** and are licensed under the
+[Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/1-0/). This repository is the
+published method of making them (ODbL section 4.6). With it and the source extracts named in each pack's
+`SOURCES.json`, anyone can rebuild a pack.
+
+## Sources
+
+| Layer | Source | Licence |
+|---|---|---|
+| Detail (z10-16): shorelines, lakes, reservoirs, rivers | [OpenStreetMap](https://www.openstreetmap.org/copyright) extracts from [Geofabrik](https://download.geofabrik.de/north-america.html); sea polygons from [osmdata.openstreetmap.de](https://osmdata.openstreetmap.de/data/water-polygons.html) | ODbL 1.0 |
+| Overview (z0-9): land, coast, large lakes and rivers | [Natural Earth](https://www.naturalearthdata.com/) 1:10m, with the North America supplements | Public domain |
+| Speed-restricted / no-wake areas (planned) | Government datasets, e.g. Florida FWC State Boating Safety Zones | Per source |
+
+Attribution shown on the device and in its documentation:
+
+> Map data © OpenStreetMap contributors, available under the Open Database License (ODbL):
+> openstreetmap.org/copyright. Overview map made with Natural Earth. Not for navigation.
+
+Data from different sources is kept in separate layers (a Collective Database), so non-OSM layers keep their own
+terms.
+
+## Pack format (draft)
+
+- Web Mercator z12 tiles. Each tile holds three geometry levels:
+
+  | Level | Zoom | Simplification tolerance | Units per tile side |
+  |---|---|---|---|
+  | L1 | z10-11 | about 40 m | 1024 |
+  | L2 | z12-13 | about 10 m | 4096 |
+  | L3 | z14-16 | about 4 m | 65536 |
+
+- Coordinates are tile-local, stored as zigzag deltas encoded as varints.
+- Closed water bodies under 1 ha are dropped.
+- Packs are FAT32-friendly: no file over 2 GiB.
+- Each pack root carries `ATTRIBUTION.txt`, `LICENSE.txt` (ODbL 1.0 notice), `SOURCES.json` (source URLs,
+  timestamps, SHA-256, tool version) and a SHA-256 manifest.
+- Packs are never encrypted or locked (ODbL section 4.7).
+
+## Tools
+
+- `tools/measure_water.py <extract.osm.pbf> [--json out.json]`: reads an OSM extract and reports how large its water
+  layers become in the pack encoding, per level. It needs Python 3 and numpy only; it includes a minimal PBF reader.
+- The pack builder is next.
+
+Source extracts go in `sources/` and outputs in `out/`. Both are git-ignored.
+
+## Licence
+
+- Map data produced by these tools: ODbL 1.0 (see above).
+- Licence for the tool code in this repository: to be decided.

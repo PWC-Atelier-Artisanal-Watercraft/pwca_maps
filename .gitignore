@@ -1,0 +1,21 @@
+# Downloaded source data (large; recorded by URL, timestamp and SHA-256 in each pack's SOURCES.json instead)
+/sources/
+*.osm.pbf
+*.pbf.md5
+
+# Build and measurement outputs
+/out/
+/packs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
