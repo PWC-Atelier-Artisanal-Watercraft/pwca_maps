@@ -412,7 +412,10 @@ def lower_priority():
     if os.name == "nt":
         import ctypes
         k32 = ctypes.windll.kernel32
-        k32.SetPriorityClass(k32.GetCurrentProcess(), 0x00004000)  # BELOW_NORMAL_PRIORITY_CLASS
+        k32.GetCurrentProcess.restype = ctypes.c_void_p  # a pseudo-handle: pointer-sized, or the call silently fails
+        k32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        if not k32.SetPriorityClass(k32.GetCurrentProcess(), 0x00004000):  # BELOW_NORMAL_PRIORITY_CLASS
+            print("warning: could not lower the priority", flush=True)
     else:
         os.nice(10)
 

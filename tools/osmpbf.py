@@ -301,7 +301,8 @@ def map_blocks(path, func, args=(), processes=1):
     blocks = [(o, s) for o, s, t in blob_index(path) if t == "OSMData"]
     if processes <= 1:
         return _run_chunk((path, blocks, func, args))
-    n = max(1, len(blocks) // (processes * 8))
+    # Small chunks: relations sit at the end of the file, so large chunks leave one worker with all of them.
+    n = max(1, len(blocks) // (processes * 64))
     jobs = [(path, blocks[i:i + n], func, args) for i in range(0, len(blocks), n)]
     out = []
     with multiprocessing.get_context("spawn").Pool(processes) as pool:
