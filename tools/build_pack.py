@@ -19,6 +19,8 @@ import argparse
 import hashlib
 import json
 import math
+import multiprocessing
+import os
 import subprocess
 import sys
 import time
@@ -75,6 +77,16 @@ def line_class(tags):
     if tags.get("intermittent") == "yes":
         return None
     return {"river": 16, "canal": 17}.get(tags.get("waterway"))
+
+
+def water_relation(tags):
+    return tags.get("type") == "multipolygon" and area_class(tags) is not None
+
+
+def way_kind(tags):
+    """(area class, line class) of a way, or None when it is neither."""
+    a, line = area_class(tags), line_class(tags)
+    return None if a is None and line is None else (a, line)
 
 
 # ---- rings from relations -------------------------------------------------------------------------------------------
@@ -146,17 +158,16 @@ def sha256(path):
     return h.hexdigest()
 
 
-def collect(path, log):
+def collect(path, log, processes):
     """Water polygons [(class, [(lat, lon, is_outer)])] and lines [(class, lat, lon)] from the extract."""
     t0 = time.time()
-    rels = osmpbf.relations(path, lambda t: t.get("type") == "multipolygon" and area_class(t) is not None)
+    rels = osmpbf.relations_parallel(path, water_relation, processes)
     member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
     log(f"relations: {len(rels)} water multipolygons, {member_ids.size} member ways ({time.time() - t0:.0f} s)")
-    wanted = lambda t: area_class(t) is not None or line_class(t) is not None
-    ws = osmpbf.ways(path, wanted, member_ids)
+    ws = osmpbf.ways_parallel(path, way_kind, member_ids, processes)  # (id, (area, line) or () for members, refs)
     log(f"ways: {len(ws)} ({time.time() - t0:.0f} s)")
     needed = np.unique(np.concatenate([r for _, _, r in ws])) if ws else np.zeros(0, np.int64)
-    lat, lon, cells = osmpbf.nodes(path, needed, cell_zoom=8)
+    lat, lon, cells = osmpbf.nodes_parallel(path, needed, processes, cell_zoom=8)
     log(f"nodes: {needed.size} needed, {int(np.isnan(lat).sum())} missing; {len(cells)} zoom-8 cells with data "
         f"({time.time() - t0:.0f} s)")
 
@@ -168,8 +179,8 @@ def collect(path, log):
 
     way_by_id = {wid: refs for wid, _, refs in ws}
     polys, lines, stats = [], [], {"small": 0, "unclosed": 0, "orphan_holes": 0}
-    for wid, tags, refs in ws:
-        cls = area_class(tags)
+    for wid, kind, refs in ws:
+        cls, lc = kind if kind else (None, None)
         if cls is not None and len(refs) >= 4 and refs[0] == refs[-1]:
             la, lo = coords(refs[:-1])
             if la.size >= 3:
@@ -177,7 +188,6 @@ def collect(path, log):
                     stats["small"] += 1
                 else:
                     polys.append((cls, [(la, lo, True)]))
-        lc = line_class(tags)
         if lc is not None:
             la, lo = coords(refs)
             if la.size >= 2:
@@ -277,7 +287,9 @@ def apply_coverage(tiles, cells, tz, bits, buf):
     return grid, out
 
 
-def build_level(polys, lines, level, log):
+def _level_chunk(job):
+    """Worker: one chunk of areas and lines cut for one level; returns (tiles, areas kept, lines kept)."""
+    polys, lines, level = job
     tz, zmin, zmax, bits, buf, tol_m = level
     wb = tz + bits
     tiles = {}
@@ -307,6 +319,26 @@ def build_level(polys, lines, level, log):
             tiles.setdefault(key, []).append(
                 (pmt.LINE, cls, None, [list(zip(x.tolist(), y.tolist())) for x, y in parts]))
         n_line += 1
+    return tiles, n_poly, n_line
+
+
+def build_level(polys, lines, level, log, processes=1):
+    """Tiles of one level, in feature order (chunks are merged in order), cut by `processes` workers."""
+    tz, zmin, zmax, bits, buf, tol_m = level
+    n = max(1, (len(polys) + len(lines)) // (processes * 16) + 1)
+    jobs = [(polys[i:i + n], [], level) for i in range(0, len(polys), n)]
+    jobs += [([], lines[i:i + n], level) for i in range(0, len(lines), n)]
+    tiles, n_poly, n_line = {}, 0, 0
+    if processes > 1:
+        with multiprocessing.get_context("spawn").Pool(processes) as pool:
+            parts = list(pool.imap(_level_chunk, jobs))
+    else:
+        parts = [_level_chunk(j) for j in jobs]
+    for part, a, b in parts:
+        n_poly += a
+        n_line += b
+        for key, feats in part.items():
+            tiles.setdefault(key, []).extend(feats)
     log(f"level z{zmin}-{zmax} (tiles z{tz}, {tol_m:g} m): {n_poly} areas, {n_line} lines -> {len(tiles)} tiles")
     return tiles
 
@@ -317,6 +349,7 @@ def main(argv):
     ap.add_argument("out_dir")
     ap.add_argument("--name", default=None, help="pack file name (default: the extract's name)")
     ap.add_argument("--sea", default=None, help="osmdata water-polygons-split-4326.zip (for coastal extracts)")
+    ap.add_argument("--processes", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     a = ap.parse_args(argv[1:])
     src = Path(a.extract)
     out = Path(a.out_dir)
@@ -327,13 +360,13 @@ def main(argv):
 
     head = osmpbf.header(src)
     stamp = head["replication_timestamp"] or int(src.stat().st_mtime)
-    polys, lines, cells = collect(src, log)
+    polys, lines, cells = collect(src, log, a.processes)
     if a.sea:
         polys = sea_polygons(a.sea, cells, log) + polys
     levels = []
     for level in LEVELS:
         tz, bits, buf = level[0], level[3], level[4]
-        grid, tiles = apply_coverage(build_level(polys, lines, level, log), cells, tz, bits, buf)
+        grid, tiles = apply_coverage(build_level(polys, lines, level, log, a.processes), cells, tz, bits, buf)
         full = sum(1 for v in grid.values() if v == 2)
         if full:
             log(f"  {full} of {len(grid)} cells default to open sea; {len(tiles)} tiles stored")
