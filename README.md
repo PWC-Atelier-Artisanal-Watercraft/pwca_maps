@@ -24,7 +24,11 @@ Attribution shown on the device and in its documentation:
 Data from different sources is kept in separate layers (a Collective Database), so non-OSM layers keep their own
 terms.
 
-## Pack format (draft)
+## Pack format
+
+The file format is frozen as **PMT 1.0**: [FORMAT.md](FORMAT.md). `tools/pmt.py` is its reference encoder and
+decoder, and `tests/vectors/` pins it (`python -m unittest discover -s tests`). The design below is how the pack
+builder uses it.
 
 - Web Mercator z12 tiles. Each tile holds three geometry levels:
 
@@ -45,6 +49,8 @@ terms.
 
 - `tools/measure_water.py <extract.osm.pbf> [--json out.json]`: reads an OSM extract and reports how large its water
   layers become in the pack encoding, per level. It needs Python 3 and numpy only; it includes a minimal PBF reader.
+- `tools/pmt.py dump|check FILE`: prints a PMT file's canonical dump, or checks every tile.
+- `tools/make_test_vectors.py`: writes the synthetic test vectors in `tests/vectors/`.
 - The pack builder is next.
 
 Source extracts go in `sources/` and outputs in `out/`. Both are git-ignored.

@@ -1,0 +1,21 @@
+PMTF 1.0 kind=2 levels=1 strings=6 attrs=0 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "osm-water"
+string 1 "© OpenStreetMap contributors"
+string 2 "ODbL 1.0"
+string 3 "OpenStreetMap"
+string 4 "2026-09-20"
+string 5 "test-vectors"
+level 0 tz=12 zoom=12-13 bits=12 buffer=32 flags=0 full_class=0 keys=2619104-2619106 entries=3 tol_dm=100
+tile 0 1000 1500 len=67 crc=5d6a8a19
+feature polygon class=2 attr=- parts=2
+part 4 100,100 3000,150 3100,2900 200,3000
+part 4 1000,1000 1000,2000 2000,2000 2000,1000
+feature polygon class=1 attr=- parts=1
+part 4 -32,-32 4128,-32 4128,50 -32,60
+feature line class=16 attr=- parts=1
+part 4 0,4000 512,3500 1024,3900 4128,3000
+tile 0 1001 1500 len=0 crc=00000000
+tile 0 1000 1501 len=11 crc=4b05c20f
+feature polygon class=5 attr=- parts=1
+part 3 0,0 4096,0 4096,4096

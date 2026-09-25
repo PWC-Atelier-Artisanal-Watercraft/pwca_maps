@@ -1,0 +1,22 @@
+PMTF 1.0 kind=3 levels=1 strings=7 attrs=3 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "fwc-zones-test"
+string 1 "Florida FWC (test data)"
+string 2 "Public record (test)"
+string 3 "FWC"
+string 4 "2026-08"
+string 5 "test-vectors"
+string 6 "tab\x09here\x01 and \"quotes\""
+attr 0 0111546573742049646c65205a6f6e6520c391060b3638442d32342e74657374
+attr 1 011054657374203235206d7068207a6f6e65020292030302871c040160050101
+attr 2 011751756f7465202220616e64205c206261636b736c617368630d0001756e6b6e6f776e20746167
+level 0 tz=12 zoom=12-16 bits=16 buffer=512 flags=0 full_class=0 keys=10476416-10476417 entries=2 tol_dm=10
+tile 0 2000 3000 len=38 crc=ff570429
+feature polygon class=1 attr=0 parts=1
+part 3 1000,1000 9000,1200 8000,9000
+feature polygon class=3 attr=1 parts=1
+part 4 20000,20000 40000,20000 40000,40000 20000,40000
+tile 0 2001 3000 len=30 crc=8e8c2de8
+feature polygon class=5 attr=2 parts=2
+part 4 0,0 65536,0 65536,65536 0,65536
+part 3 100,100 100,200 200,200

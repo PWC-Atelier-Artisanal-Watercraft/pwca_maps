@@ -1,0 +1,923 @@
+PMTF 1.0 kind=2 levels=3 strings=6 attrs=0 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "osm-water"
+string 1 "© OpenStreetMap contributors"
+string 2 "ODbL 1.0"
+string 3 "OpenStreetMap"
+string 4 "2026-09-20"
+string 5 "test-vectors"
+level 0 tz=10 zoom=10-11 bits=12 buffer=32 flags=1 full_class=1 keys=163779-163788 entries=2 tol_dm=400
+grid 0 v0=65533 v1=1 v2=2 v3=0
+level 1 tz=12 zoom=12-13 bits=12 buffer=32 flags=0 full_class=0 keys=2619104-2620877 entries=300 tol_dm=100
+level 2 tz=12 zoom=14-16 bits=16 buffer=512 flags=0 full_class=0 keys=2619104-2619104 entries=1 tol_dm=40
+tile 0 249 377 len=12 crc=6eb7c910
+feature polygon class=2 attr=- parts=1
+part 3 10,10 4000,20 2000,4000
+tile 0 250 378 len=0 crc=00000000
+tile 1 1000 1500 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1001 1500 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1000 1501 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1001 1501 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1002 1500 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1003 1500 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1002 1501 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1003 1501 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1000 1502 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1001 1502 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1000 1503 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1001 1503 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1002 1502 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1003 1502 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1002 1503 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1003 1503 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1004 1500 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1005 1500 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1004 1501 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1005 1501 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1006 1500 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1007 1500 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1006 1501 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1007 1501 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1004 1502 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1005 1502 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1004 1503 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1005 1503 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1006 1502 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1007 1502 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1006 1503 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1007 1503 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1008 1500 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1009 1500 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1008 1501 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1009 1501 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1010 1500 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1011 1500 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1010 1501 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1011 1501 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1008 1502 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1009 1502 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1008 1503 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1009 1503 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1010 1502 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1011 1502 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1010 1503 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1011 1503 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1012 1500 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1013 1500 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1012 1501 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1013 1501 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1014 1500 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1015 1500 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1014 1501 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1015 1501 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1012 1502 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1013 1502 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1012 1503 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1013 1503 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1014 1502 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1015 1502 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1014 1503 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1015 1503 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1016 1500 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1017 1500 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1016 1501 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1017 1501 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1018 1500 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1019 1500 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1018 1501 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1019 1501 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1016 1502 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1017 1502 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1016 1503 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1017 1503 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1018 1502 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1019 1502 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1018 1503 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1019 1503 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1000 1504 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1001 1504 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1000 1505 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1001 1505 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1002 1504 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1003 1504 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1002 1505 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1003 1505 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1000 1506 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1001 1506 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1000 1507 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1001 1507 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1002 1506 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1003 1506 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1002 1507 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1003 1507 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1004 1504 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1005 1504 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1004 1505 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1005 1505 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1006 1504 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1007 1504 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1006 1505 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1007 1505 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1004 1506 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1005 1506 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1004 1507 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1005 1507 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1006 1506 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1007 1506 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1006 1507 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1007 1507 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1000 1508 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1001 1508 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1000 1509 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1001 1509 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1002 1508 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1003 1508 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1002 1509 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1003 1509 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1000 1510 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1001 1510 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1000 1511 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1001 1511 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1002 1510 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1003 1510 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1002 1511 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1003 1511 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1004 1508 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1005 1508 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1004 1509 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1005 1509 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1006 1508 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1007 1508 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1006 1509 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1007 1509 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1004 1510 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1005 1510 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1004 1511 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1005 1511 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1006 1510 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1007 1510 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1006 1511 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1007 1511 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1000 1512 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1001 1512 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1000 1513 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1001 1513 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1002 1512 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1003 1512 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1002 1513 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1003 1513 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1000 1514 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1001 1514 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1002 1514 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1003 1514 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1004 1512 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1005 1512 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1004 1513 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1005 1513 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1006 1512 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1007 1512 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1006 1513 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1007 1513 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1004 1514 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1005 1514 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1006 1514 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1007 1514 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1008 1504 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1009 1504 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1008 1505 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1009 1505 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1010 1504 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1011 1504 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1010 1505 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1011 1505 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1008 1506 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1009 1506 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1008 1507 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1009 1507 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1010 1506 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1011 1506 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1010 1507 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1011 1507 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1012 1504 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1013 1504 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1012 1505 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1013 1505 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1014 1504 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1015 1504 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1014 1505 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1015 1505 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1012 1506 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1013 1506 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1012 1507 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1013 1507 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1014 1506 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1015 1506 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1014 1507 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1015 1507 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1008 1508 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1009 1508 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1008 1509 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1009 1509 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1010 1508 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1011 1508 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1010 1509 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1011 1509 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1008 1510 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1009 1510 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1008 1511 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1009 1511 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1010 1510 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1011 1510 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1010 1511 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1011 1511 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1012 1508 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1013 1508 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1012 1509 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1013 1509 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1014 1508 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1015 1508 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1014 1509 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1015 1509 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1012 1510 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1013 1510 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1012 1511 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1013 1511 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1014 1510 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1015 1510 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1014 1511 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1015 1511 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1016 1504 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1017 1504 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1016 1505 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1017 1505 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1018 1504 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1019 1504 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1018 1505 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1019 1505 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1016 1506 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1017 1506 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1016 1507 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1017 1507 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1018 1506 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1019 1506 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1018 1507 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1019 1507 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1016 1508 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1017 1508 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1016 1509 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1017 1509 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1018 1508 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1019 1508 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1018 1509 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1019 1509 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1016 1510 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1017 1510 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1016 1511 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1017 1511 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1018 1510 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1019 1510 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1018 1511 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1019 1511 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1008 1512 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1009 1512 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1008 1513 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1009 1513 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1010 1512 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1011 1512 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1010 1513 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1011 1513 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1008 1514 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1009 1514 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1010 1514 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1011 1514 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1012 1512 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1013 1512 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1012 1513 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1013 1513 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1014 1512 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1015 1512 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1014 1513 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1015 1513 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1012 1514 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1013 1514 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1014 1514 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1015 1514 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1016 1512 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 1 1017 1512 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1016 1513 len=16 crc=f7209803
+feature polygon class=2 attr=- parts=1
+part 4 100,100 3100,100 3100,3100 100,3100
+tile 1 1017 1513 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1018 1512 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1019 1512 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1018 1513 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1019 1513 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1016 1514 len=16 crc=6aa7ff41
+feature polygon class=2 attr=- parts=1
+part 4 100,100 300,100 300,300 100,300
+tile 1 1017 1514 len=16 crc=fffd2192
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1000,100 1000,1000 100,1000
+tile 1 1018 1514 len=16 crc=899f1360
+feature polygon class=2 attr=- parts=1
+part 4 100,100 1700,100 1700,1700 100,1700
+tile 1 1019 1514 len=16 crc=b27c3053
+feature polygon class=2 attr=- parts=1
+part 4 100,100 2400,100 2400,2400 100,2400
+tile 2 1000 1500 len=67 crc=792fb0aa
+feature polygon class=1 attr=- parts=1
+part 5 -512,-512 66048,-512 66048,66048 30000,40000 -512,66048
+feature line class=17 attr=- parts=3
+part 2 0,0 65536,65536
+part 2 5,5 6,7
+part 3 -500,60000 123,456 65000,1
