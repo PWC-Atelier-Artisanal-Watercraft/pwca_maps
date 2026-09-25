@@ -105,6 +105,42 @@ class Cutting(unittest.TestCase):
             self.assertAlmostEqual(total_area(tiles), pg.area2(x, y) / 2, delta=abs(pg.area2(x, y)) * 1e-3 + 50)
 
 
+class Regions(unittest.TestCase):
+    """Cutting restricted to a region makes exactly the unrestricted cut's tiles inside the region."""
+
+    @staticmethod
+    def inside(key, region):
+        rz, rx, ry = region
+        return (key[0] >> (TZ - rz)) == rx and (key[1] >> (TZ - rz)) == ry
+
+    def same(self, a, b):
+        self.assertEqual(sorted(a), sorted(b))
+        for key in a:
+            self.assertEqual([(x.tolist(), y.tolist()) for x, y in a[key]], [(x.tolist(), y.tolist()) for x, y in b[key]])
+
+    def test_polygons_and_lines(self):
+        rng = np.random.default_rng(11)
+        for i in range(9):
+            n = 60
+            t = np.sort(rng.uniform(0, 2 * math.pi, n))
+            big = i % 3 == 0  # covers whole quadtree nodes (the full-square shortcut)
+            r = rng.uniform(300, 700, n) * (8 if big else 1)
+            cx, cy = (600 << BITS) + int(rng.integers(0, SIDE)), (500 << BITS) + int(rng.integers(0, SIDE))
+            x, y = np.rint(cx + r * np.cos(t)), np.rint(cy + r * np.sin(t))
+            x, y = pg.orient(x.astype(np.int64), y.astype(np.int64), True)
+            full = pg.cut_polygon([(x, y)], TZ, BITS, 16)
+            lines = pg.cut_line([(x, y)], TZ, BITS, 16)
+            keys = sorted(full)
+            regions = {(rz, kx >> (TZ - rz), ky >> (TZ - rz)) for rz in (TZ - 6, TZ - 3, TZ - 1) for kx, ky in keys}
+            regions |= {(TZ, kx, ky) for kx, ky in keys[::max(1, len(keys) // 20)]}
+            regions.add((TZ - 2, 0, 0))  # a region the polygon doesn't reach
+            for region in regions:
+                self.same(pg.cut_polygon([(x, y)], TZ, BITS, 16, region=region),
+                          {k: v for k, v in full.items() if self.inside(k, region)})
+                self.same(pg.cut_line([(x, y)], TZ, BITS, 16, region=region),
+                          {k: v for k, v in lines.items() if self.inside(k, region)})
+
+
 class Lines(unittest.TestCase):
     def test_line_cut_keeps_length_and_bounds(self):
         rng = np.random.default_rng(5)

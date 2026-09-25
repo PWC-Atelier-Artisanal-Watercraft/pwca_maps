@@ -238,7 +238,8 @@ def build_pmt(*, layer_kind, levels, strings, ids, attrs=(), build_time=0, data_
     """Returns the bytes of a PMT file.
 
     levels: a list of dicts with tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance_dm, tiles
-    ({(x, y): features}; an empty list makes an empty tile) and optionally full_class and grid ({(cx, cy): value}).
+    ({(x, y): features}, or the tile's bytes from encode_tile; an empty list makes an empty tile) and optionally
+    full_class and grid ({(cx, cy): value}).
     strings: a list of str. ids: {field: string index or None} for the fields in ID_FIELDS.
     attrs: a list of attribute records (bytes, e.g. from encode_attr).
     """
@@ -260,6 +261,9 @@ def build_pmt(*, layer_kind, levels, strings, ids, attrs=(), build_time=0, data_
         for (x, y), feats in lv["tiles"].items():
             if not (0 <= x < (1 << tz) and 0 <= y < (1 << tz)):
                 raise PmtError(f"tile ({x}, {y}) outside zoom {tz}")
+            if isinstance(feats, (bytes, bytearray)):  # already encoded (encode_tile with this level's parameters)
+                tiles.append((morton(x, y), bytes(feats)))
+                continue
             for _, _, attr, _ in feats:
                 if attr is not None and attr >= len(attrs):
                     raise PmtError("attribute index out of range")

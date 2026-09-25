@@ -405,6 +405,83 @@ def _nodes_in(block, needed_path, cell_zoom):
     return out
 
 
+def imap_blocks(path, func, args=(), processes=1):
+    """Like map_blocks, but yields each chunk's results (in file order) as they arrive, for passes whose results the
+    caller folds into arrays instead of keeping them all."""
+    blocks = [(o, s) for o, s, t in blob_index(path) if t == "OSMData"]
+    n = max(1, len(blocks) // (max(1, processes) * 32))
+    jobs = [(path, blocks[i:i + n], func, args) for i in range(0, len(blocks), n)]
+    if processes <= 1:
+        for job in jobs:
+            yield _run_chunk(job)
+        return
+    with multiprocessing.get_context("spawn").Pool(processes) as pool:
+        yield from pool.imap(_run_chunk, jobs)
+
+
+def _e7(nano):
+    """Nanodegrees (int64) to 1e-7 degrees (int32), rounded; exact for OSM's usual granularity of 100."""
+    q, r = np.divmod(nano, 100)
+    return (q + (r >= 50)).astype(np.int32)
+
+
+def _nodes_e7_in(block, needed_path, cell_zoom):
+    strings, groups, gran, lat_off, lon_off = block
+    needed = np.load(needed_path, mmap_mode="r")
+    out = []
+    for g in groups:
+        for fn, dense in fields(g):
+            if fn != 2:
+                continue
+            ids = la = lo = None
+            for f2, v in fields(dense):
+                if f2 == 1:
+                    ids = np.cumsum(zigzag(varints(v)))
+                elif f2 == 8:
+                    la = np.cumsum(zigzag(varints(v)))
+                elif f2 == 9:
+                    lo = np.cumsum(zigzag(varints(v)))
+            if ids is None:
+                continue
+            nlat = lat_off + gran * la
+            nlon = lon_off + gran * lo
+            cells = set()
+            if cell_zoom is not None:
+                dlat, dlon = 1e-9 * nlat, 1e-9 * nlon
+                n = 1 << cell_zoom
+                cx = np.clip(((dlon + 180.0) / 360.0 * n).astype(np.int64), 0, n - 1)
+                s = np.sin(np.radians(np.clip(dlat, -85.0511, 85.0511)))
+                cy = np.clip(((0.5 - np.log((1 + s) / (1 - s)) / (4 * np.pi)) * n).astype(np.int64), 0, n - 1)
+                cells = set(np.unique(cx * n + cy).tolist())
+            if needed.size:
+                pos = np.searchsorted(needed, ids)
+                pos[pos >= needed.size] = 0
+                hit = needed[pos] == ids
+                out.append((pos[hit], _e7(nlat[hit]), _e7(nlon[hit]), cells))
+            else:
+                out.append((np.zeros(0, np.int64), np.zeros(0, np.int32), np.zeros(0, np.int32), cells))
+    return out
+
+
+def nodes_e7_parallel(path, needed, processes, cell_zoom=None):
+    """Like nodes_parallel, with the coordinates in 1e-7 degrees (int32, INT32_MIN where missing) and folded into the
+    arrays as the workers deliver them: 8 bytes per needed node instead of 16, and no list of every block's result."""
+    missing = np.iinfo(np.int32).min
+    lat = np.full(needed.size, missing, np.int32)
+    lon = np.full(needed.size, missing, np.int32)
+    cells = set()
+    with tempfile.TemporaryDirectory() as d:
+        needed_path = os.path.join(d, "needed.npy")
+        np.save(needed_path, needed)
+        for part in imap_blocks(path, _nodes_e7_in, (needed_path, cell_zoom), processes):
+            for pos, la, lo, c in part:
+                lat[pos] = la
+                lon[pos] = lo
+                cells |= c
+    n = 1 << (cell_zoom or 0)
+    return lat, lon, ({(c // n, c % n) for c in cells} if cell_zoom is not None else None)
+
+
 def relations_parallel(path, want, processes):
     """Like relations(); `want` must be a module-level function."""
     return map_blocks(path, _relations_in, (want,), processes)

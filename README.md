@@ -40,7 +40,8 @@ builder uses it.
 
 - Coordinates are tile-local, stored as zigzag deltas encoded as varints.
 - Closed water bodies under 1 ha are dropped.
-- Packs are FAT32-friendly: no file over 2 GiB.
+- Packs are FAT32-friendly: no file over 2 GiB. A large extract (all of North America) is written as several
+  files, whole regions each, every file with the coverage grid of its own regions.
 - Each pack root carries `ATTRIBUTION.txt`, `LICENSE.txt` (ODbL 1.0 notice), `SOURCES.json` (source URLs,
   timestamps, SHA-256, tool version) and a SHA-256 manifest.
 - Packs are never encrypted or locked (ODbL section 4.7).
@@ -60,7 +61,8 @@ builder uses it.
   Earth 1:10m zips named in the script.
 - `tools/make_test_vectors.py`, `tools/make_synthetic_pack.py`: the test vectors, and invented geometry for renderer
   benches (labelled as such in the file).
-- Library modules: `osmpbf.py` (a minimal PBF reader), `packgeom.py` (projection, simplification, tile cutting).
+- Library modules: `osmpbf.py` (a minimal PBF reader), `packgeom.py` (projection, simplification, tile cutting),
+  `featurestore.py` (the builder's on-disk feature store, memory-mapped by the worker processes).
 
 Tests: `python -m unittest discover -s tests`.
 

@@ -135,13 +135,24 @@ def _is_rect(x, y, x0, y0, x1, y1):
     return x.size == 4 and set(np.unique(x)) == {x0, x1} and set(np.unique(y)) == {y0, y1}
 
 
-def cut_polygon(rings, tile_zoom, coord_bits, buffer):
+def _overlaps(z, nx, ny, region):
+    """Whether quadtree node (z, nx, ny) and the region node (rz, rx, ry) overlap (one contains the other)."""
+    if region is None:
+        return True
+    rz, rx, ry = region
+    if z <= rz:
+        return (rx >> (rz - z)) == nx and (ry >> (rz - z)) == ny
+    return (nx >> (z - rz)) == rx and (ny >> (z - rz)) == ry
+
+
+def cut_polygon(rings, tile_zoom, coord_bits, buffer, region=None):
     """Cuts one polygon into buffered tiles.
 
     rings: a list of (x, y) integer world-unit arrays at world bits tile_zoom + coord_bits, already oriented (outer
     rings clockwise on screen, holes the other way). Returns {(tx, ty): [(x, y) tile-local int arrays]}; each ring is
     clipped to the tile grown by `buffer` units and keeps its orientation. A node that the polygon covers completely is
-    not clipped further: its tiles get the buffered square.
+    not clipped further: its tiles get the buffered square. With region = (rz, rx, ry) (rz <= tile_zoom), only the
+    tiles inside that quadtree node are made; each is the same as without the region.
     """
     rings = [(np.asarray(x, np.float64), np.asarray(y, np.float64)) for x, y in rings]
     if not rings:
@@ -159,11 +170,13 @@ def cut_polygon(rings, tile_zoom, coord_bits, buffer):
         z -= 1
         tx0, ty0, tx1, ty1 = tx0 >> 1, ty0 >> 1, tx1 >> 1, ty1 >> 1
     out = {}
-    _cut_node(rings, z, tx0, ty0, tile_zoom, coord_bits, buffer, side, out)
+    _cut_node(rings, z, tx0, ty0, tile_zoom, coord_bits, buffer, side, out, region)
     return out
 
 
-def _cut_node(rings, z, nx, ny, tile_zoom, coord_bits, buffer, side, out):
+def _cut_node(rings, z, nx, ny, tile_zoom, coord_bits, buffer, side, out, region=None):
+    if not _overlaps(z, nx, ny, region):
+        return
     shift = coord_bits + tile_zoom - z  # node side = 2^shift world units
     x0, y0 = (nx << shift) - buffer, (ny << shift) - buffer
     x1, y1 = ((nx + 1) << shift) + buffer, ((ny + 1) << shift) + buffer
@@ -175,13 +188,14 @@ def _cut_node(rings, z, nx, ny, tile_zoom, coord_bits, buffer, side, out):
     if not kept:
         return
     if len(kept) == 1 and _is_rect(*kept[0], x0, y0, x1, y1) and area2(*kept[0]) > 0:
-        # Fully inside the polygon: every tile below is the full buffered square.
-        n = 1 << (tile_zoom - z)
+        # Fully inside the polygon: every tile below is the full buffered square (only the region's, if it is smaller).
+        fz, fx, fy = (z, nx, ny) if region is None or z >= region[0] else region
+        n = 1 << (tile_zoom - fz)
         sq = (np.array([-buffer, side + buffer, side + buffer, -buffer], np.int64),
               np.array([-buffer, -buffer, side + buffer, side + buffer], np.int64))
         for dx in range(n):
             for dy in range(n):
-                out.setdefault(((nx << (tile_zoom - z)) + dx, (ny << (tile_zoom - z)) + dy), []).append(sq)
+                out.setdefault(((fx << (tile_zoom - fz)) + dx, (fy << (tile_zoom - fz)) + dy), []).append(sq)
         return
     if z == tile_zoom:
         ox, oy = nx << coord_bits, ny << coord_bits
@@ -192,7 +206,7 @@ def _cut_node(rings, z, nx, ny, tile_zoom, coord_bits, buffer, side, out):
         return
     for dx in (0, 1):
         for dy in (0, 1):
-            _cut_node(kept, z + 1, 2 * nx + dx, 2 * ny + dy, tile_zoom, coord_bits, buffer, side, out)
+            _cut_node(kept, z + 1, 2 * nx + dx, 2 * ny + dy, tile_zoom, coord_bits, buffer, side, out, region)
 
 
 def clip_line_half(x, y, axis, value, keep_greater):
@@ -245,9 +259,9 @@ def clean_line(x, y):
     return (x, y) if x.size >= 2 else None
 
 
-def cut_line(parts, tile_zoom, coord_bits, buffer):
+def cut_line(parts, tile_zoom, coord_bits, buffer, region=None):
     """Cuts polylines (a list of (x, y) integer world-unit arrays, as cut_polygon) into buffered tiles:
-    {(tx, ty): [(x, y) tile-local int arrays]}."""
+    {(tx, ty): [(x, y) tile-local int arrays]}; `region` as in cut_polygon."""
     parts = [(np.asarray(x, np.float64), np.asarray(y, np.float64)) for x, y in parts if len(x) >= 2]
     if not parts:
         return {}
@@ -262,11 +276,13 @@ def cut_line(parts, tile_zoom, coord_bits, buffer):
         z -= 1
         tx0, ty0, tx1, ty1 = tx0 >> 1, ty0 >> 1, tx1 >> 1, ty1 >> 1
     out = {}
-    _cut_line_node(parts, z, tx0, ty0, tile_zoom, coord_bits, buffer, out)
+    _cut_line_node(parts, z, tx0, ty0, tile_zoom, coord_bits, buffer, out, region)
     return out
 
 
-def _cut_line_node(parts, z, nx, ny, tile_zoom, coord_bits, buffer, out):
+def _cut_line_node(parts, z, nx, ny, tile_zoom, coord_bits, buffer, out, region=None):
+    if not _overlaps(z, nx, ny, region):
+        return
     shift = coord_bits + tile_zoom - z
     x0, y0 = (nx << shift) - buffer, (ny << shift) - buffer
     x1, y1 = ((nx + 1) << shift) + buffer, ((ny + 1) << shift) + buffer
@@ -282,4 +298,4 @@ def _cut_line_node(parts, z, nx, ny, tile_zoom, coord_bits, buffer, out):
         return
     for dx in (0, 1):
         for dy in (0, 1):
-            _cut_line_node(kept, z + 1, 2 * nx + dx, 2 * ny + dy, tile_zoom, coord_bits, buffer, out)
+            _cut_line_node(kept, z + 1, 2 * nx + dx, 2 * ny + dy, tile_zoom, coord_bits, buffer, out, region)
