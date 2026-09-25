@@ -243,7 +243,7 @@ def main(argv):
         "terms": "FWC: acknowledgment of FWC-FWRI as the source is appreciated; not a legal document for navigation.",
         "files": {pack.name: {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}},
     }
-    (out / "SOURCES.json").write_text(json.dumps(sources, indent=2) + "\n", encoding="utf-8")
+    (out / "SOURCES.json").write_text(json.dumps(sources, indent=2) + "\n", encoding="utf-8", newline="\n")
     log(f"wrote {pack}: {len(data) / 1e6:.2f} MB, {len(attrs)} attribute records, {len(cells)} zoom-8 cells covered")
     return 0
 

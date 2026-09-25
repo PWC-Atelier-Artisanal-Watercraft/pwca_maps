@@ -518,8 +518,8 @@ def main(argv):
     if not a.keep_store:
         shutil.rmtree(store_dir, ignore_errors=True)
 
-    (out / "LICENSE.txt").write_text(LICENSE_TEXT, encoding="utf-8")
-    (out / "ATTRIBUTION.txt").write_text(ATTRIBUTION_TEXT, encoding="utf-8")
+    (out / "LICENSE.txt").write_text(LICENSE_TEXT, encoding="utf-8", newline="\n")
+    (out / "ATTRIBUTION.txt").write_text(ATTRIBUTION_TEXT, encoding="utf-8", newline="\n")
     sources = [{"name": "OpenStreetMap", "license": "ODbL 1.0", "file": src.name, "sha256": sha256(src),
                 "replication_timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(stamp)),
                 "writing_program": head["writing_program"], "extract_source": head["source"]}]
@@ -533,9 +533,9 @@ def main(argv):
         "sources": sources,
         "files": {dst.name: {"bytes": n, "sha256": h, "tiles_per_level": t} for (_, n, h, t), dst in zip(files, final)},
     }
-    (out / "SOURCES.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    (out / "SOURCES.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n")
     manifest = [f"{sha256(q)}  {q.name}" for q in sorted(out.iterdir()) if q.is_file() and q.name != "MANIFEST.sha256"]
-    (out / "MANIFEST.sha256").write_text("\n".join(manifest) + "\n", encoding="utf-8")
+    (out / "MANIFEST.sha256").write_text("\n".join(manifest) + "\n", encoding="utf-8", newline="\n")
     total = sum(n for _, n, _, _ in files)
     log(f"done: {len(final)} file(s), {total / 1e6:.1f} MB in {out}; data as of {date}")
     return 0
