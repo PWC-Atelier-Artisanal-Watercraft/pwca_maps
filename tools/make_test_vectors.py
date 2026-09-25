@@ -76,6 +76,19 @@ def zones():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+def base_minimal():
+    """An overview tile (base layer): land with a lake and a river; absent tiles are water."""
+    land = [[(-32, 1000), (2000, 900), (4128, 1500), (4128, 4128), (-32, 4128)]]
+    lake = [[(1500, 2500), (2500, 2400), (2600, 3300), (1600, 3400)]]
+    river = [[(300, 3900), (1200, 3000), (1550, 2950)]]
+    level = {"tile_zoom": 5, "zoom_min": 5, "zoom_max": 9, "coord_bits": 12, "buffer": 32, "tolerance_dm": 3000,
+             "tiles": {(7, 11): [(POLYGON, 1, None, land), (POLYGON, 2, None, lake), (LINE, 3, None, river)],
+                       (7, 12): [(POLYGON, 1, None, [[(-32, -32), (4128, -32), (4128, 4128), (-32, 4128)]])]}}
+    strings = ["ne-overview", "Made with Natural Earth", "Public domain", "Natural Earth", "1:10m", "test-vectors"]
+    return dict(layer_kind=pmt.KIND_BASE, levels=[level], strings=strings, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
 SEAM_TILE = (1000, 1500)  # top-left tile of the 3 x 3 block the seam polygon covers
 
 
@@ -124,7 +137,8 @@ def seam_rings_text():
     return ("\n".join(lines) + "\n").encode("ascii")
 
 
-VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam}
+VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
+           "base_minimal": base_minimal}
 
 
 def main(argv):
