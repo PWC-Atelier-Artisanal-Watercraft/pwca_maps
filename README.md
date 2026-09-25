@@ -55,6 +55,10 @@ builder uses it.
   level, cut into buffered tiles, written as one PMT file with `SOURCES.json`, `ATTRIBUTION.txt`, `LICENSE.txt` and
   `MANIFEST.sha256`. For a coastal extract, `--sea water-polygons-split-4326.zip` adds the sea from the osmdata
   water polygons; `--processes N` runs the passes in N worker processes.
+- `tools/build_zones.py <out_dir> --boating B.geojson --manatee M.geojson --date YYYY-MM`: the speed-restricted
+  and no-wake zones layer from the Florida FWC State Boating Safety Zones (FAC 68D-24) and State Manatee
+  Protection Zones (FAC 68C-22), mapped cautiously (seasons by whole months, partial times flagged; anchoring and
+  propeller rules left out); the coverage grid holds only the cells with zones.
 - `tools/pmt.py dump|check FILE`: prints a PMT file's canonical dump, or checks every tile.
 - `tools/pmt_crop.py`: cuts a region out of a PMT file by tile ranges (small test packs).
 - `tools/build_overview.py <natural_earth_dir> <out.pmt>`: the overview (base layer, z2-9) from the six Natural
