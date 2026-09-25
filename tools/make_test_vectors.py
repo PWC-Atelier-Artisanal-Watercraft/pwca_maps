@@ -76,6 +76,25 @@ def zones():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+def zones_shapes():
+    """Zone shapes for drawing, in tile (2000, 3000): two squares sharing an edge (dashes run only round the pair), a
+    strip 600 units wide (about 2.3 px at zoom 12: a solid edge, no hatch) and a large rectangle (hatched)."""
+    attrs = [pmt.encode_attr([(pmt.TAG_NAME, "Pair west")]), pmt.encode_attr([(pmt.TAG_NAME, "Pair east")]),
+             pmt.encode_attr([(pmt.TAG_NAME, "Thin strip")]), pmt.encode_attr([(pmt.TAG_NAME, "Large rectangle")])]
+
+    def rect(x0, y0, x1, y1):
+        return [[(x0, y0), (x1, y0), (x1, y1), (x0, y1)]]  # clockwise on screen
+
+    level = {"tile_zoom": 12, "zoom_min": 12, "zoom_max": 16, "coord_bits": 16, "buffer": 512, "tolerance_dm": 10,
+             "tiles": {(2000, 3000): [(POLYGON, 1, 0, rect(4000, 4000, 20000, 20000)),
+                                      (POLYGON, 1, 1, rect(20000, 4000, 36000, 20000)),
+                                      (POLYGON, 1, 2, rect(4000, 30000, 40000, 30600)),
+                                      (POLYGON, 5, 3, rect(8000, 40000, 56000, 60000))]}}
+    strings = ["zones-shapes-test", "Test shapes", "Public domain (test)", "none", "2026-09", "test-vectors"]
+    return dict(layer_kind=pmt.KIND_ZONES, levels=[level], strings=strings, ids=IDS, attrs=attrs,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
 def base_minimal():
     """An overview tile (base layer): land with a lake and a river; absent tiles are water."""
     land = [[(-32, 1000), (2000, 900), (4128, 1500), (4128, 4128), (-32, 4128)]]
@@ -138,7 +157,7 @@ def seam_rings_text():
 
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
-           "base_minimal": base_minimal}
+           "base_minimal": base_minimal, "zones_shapes": zones_shapes}
 
 
 def main(argv):

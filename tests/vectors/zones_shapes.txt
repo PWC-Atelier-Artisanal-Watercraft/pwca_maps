@@ -1,0 +1,22 @@
+PMTF 1.0 kind=3 levels=1 strings=6 attrs=4 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "zones-shapes-test"
+string 1 "Test shapes"
+string 2 "Public domain (test)"
+string 3 "none"
+string 4 "2026-09"
+string 5 "test-vectors"
+attr 0 0109506169722077657374
+attr 1 0109506169722065617374
+attr 2 010a5468696e207374726970
+attr 3 010f4c617267652072656374616e676c65
+level 0 tz=12 zoom=12-16 bits=16 buffer=512 flags=0 full_class=0 keys=10476416-10476416 entries=1 tol_dm=10
+tile 0 2000 3000 len=84 crc=f71a2649
+feature polygon class=1 attr=0 parts=1
+part 4 4000,4000 20000,4000 20000,20000 4000,20000
+feature polygon class=1 attr=1 parts=1
+part 4 20000,4000 36000,4000 36000,20000 20000,20000
+feature polygon class=1 attr=2 parts=1
+part 4 4000,30000 40000,30000 40000,30600 4000,30600
+feature polygon class=5 attr=3 parts=1
+part 4 8000,40000 56000,40000 56000,60000 8000,60000
