@@ -431,6 +431,8 @@ def main(argv):
     ap.add_argument("--max-file-bytes", type=int, default=MAX_FILE_BYTES)
     ap.add_argument("--low-priority", action="store_true", help="run below normal priority")
     ap.add_argument("--keep-store", action="store_true", help="keep the feature store (<out_dir>/store)")
+    ap.add_argument("--reuse-store", action="store_true",
+                    help="skip the passes over the extract: cut from a complete store kept by an earlier run")
     a = ap.parse_args(argv[1:])
     if not 0 <= a.region_zoom <= 8:
         ap.error("--region-zoom must be 0-8 (regions hold whole zoom-8 coverage cells)")
@@ -446,9 +448,16 @@ def main(argv):
     head = osmpbf.header(src)
     stamp = head["replication_timestamp"] or int(src.stat().st_mtime)
     store_dir = out / "store"
-    if store_dir.exists():
-        shutil.rmtree(store_dir)
-    cells, _ = collect_store(src, store_dir, log, a.processes, a.sea)
+    done_marker = store_dir / "COMPLETE"
+    if a.reuse_store and done_marker.exists():
+        cells = {tuple(c) for c in np.load(store_dir / "cells.npy").tolist()}
+        log(f"reusing the feature store in {store_dir} ({len(cells)} zoom-8 cells with data)")
+    else:
+        if store_dir.exists():
+            shutil.rmtree(store_dir)
+        cells, _ = collect_store(src, store_dir, log, a.processes, a.sea)
+        np.save(store_dir / "cells.npy", np.array(sorted(cells), np.int32).reshape(-1, 2))
+        done_marker.write_text(f"{src.name} {stamp}\n", encoding="utf-8")
     gc.collect()
     regions = regions_of(cells, a.region_zoom)
     log(f"{len(regions)} regions (zoom {a.region_zoom}) over {len(cells)} zoom-8 cells; cutting with {a.processes} "
