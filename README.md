@@ -52,9 +52,12 @@ builder uses it.
 - `tools/build_pack.py <extract.osm.pbf> <out_dir>`: builds the detail water layer of an extract (water areas as
   ways and multipolygons, river and canal lines; intermittent water dropped; areas under 1 ha dropped), simplified per
   level, cut into buffered tiles, written as one PMT file with `SOURCES.json`, `ATTRIBUTION.txt`, `LICENSE.txt` and
-  `MANIFEST.sha256`. The sea (from the water polygons) is next.
+  `MANIFEST.sha256`. For a coastal extract, `--sea water-polygons-split-4326.zip` adds the sea from the osmdata
+  water polygons; `--processes N` runs the passes in N worker processes.
 - `tools/pmt.py dump|check FILE`: prints a PMT file's canonical dump, or checks every tile.
 - `tools/pmt_crop.py`: cuts a region out of a PMT file by tile ranges (small test packs).
+- `tools/build_overview.py <natural_earth_dir> <out.pmt>`: the overview (base layer, z2-9) from the six Natural
+  Earth 1:10m zips named in the script.
 - `tools/make_test_vectors.py`, `tools/make_synthetic_pack.py`: the test vectors, and invented geometry for renderer
   benches (labelled as such in the file).
 - Library modules: `osmpbf.py` (a minimal PBF reader), `packgeom.py` (projection, simplification, tile cutting).
@@ -66,4 +69,6 @@ Source extracts go in `sources/` and outputs in `out/`. Both are git-ignored.
 ## Licence
 
 - Map data produced by these tools: ODbL 1.0 (see above).
-- Licence for the tool code in this repository: to be decided.
+- The tool code, format specification and test vectors in this repository: Apache License 2.0 ([LICENSE](LICENSE)).
+  The map data the tools produce is not covered by it: it stays under the ODbL (and the terms of each non-OSM
+  layer's source).
