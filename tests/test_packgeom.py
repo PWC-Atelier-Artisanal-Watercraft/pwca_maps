@@ -105,5 +105,25 @@ class Cutting(unittest.TestCase):
             self.assertAlmostEqual(total_area(tiles), pg.area2(x, y) / 2, delta=abs(pg.area2(x, y)) * 1e-3 + 50)
 
 
+class Lines(unittest.TestCase):
+    def test_line_cut_keeps_length_and_bounds(self):
+        rng = np.random.default_rng(5)
+        x0, y0 = 900 << BITS, 900 << BITS
+        x = np.rint(x0 + np.cumsum(rng.uniform(-40, 90, 60))).astype(np.int64)
+        y = np.rint(y0 + np.cumsum(rng.uniform(-30, 70, 60))).astype(np.int64)
+        tiles = pg.cut_line([(x, y)], TZ, BITS, buffer=0)
+        length = lambda a, b: float(np.hypot(np.diff(a), np.diff(b)).sum())
+        cut = sum(length(px, py) for parts in tiles.values() for px, py in parts)
+        self.assertAlmostEqual(cut, length(x, y), delta=0.02 * length(x, y) + 2 * len(tiles))
+        for parts in tiles.values():
+            for px, py in parts:
+                self.assertTrue(px.min() >= 0 and px.max() <= SIDE and py.min() >= 0 and py.max() <= SIDE)
+
+    def test_line_leaving_and_reentering_splits(self):
+        parts = pg.clip_line_rect(np.array([0.0, 10, 30, 30, 10]), np.array([5.0, 5, 5, 15, 15]), -1, 0, 20, 20)
+        self.assertEqual(len(parts), 2)
+        self.assertEqual((parts[0][0].tolist(), parts[1][0].tolist()), ([0, 10, 20], [20, 10]))
+
+
 if __name__ == "__main__":
     unittest.main()

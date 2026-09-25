@@ -193,3 +193,93 @@ def _cut_node(rings, z, nx, ny, tile_zoom, coord_bits, buffer, side, out):
     for dx in (0, 1):
         for dy in (0, 1):
             _cut_node(kept, z + 1, 2 * nx + dx, 2 * ny + dy, tile_zoom, coord_bits, buffer, side, out)
+
+
+def clip_line_half(x, y, axis, value, keep_greater):
+    """Clips an open polyline to one axis-aligned half-plane; returns a list of (x, y) parts (points on the line count
+    as inside). Vectorised like clip_half: each point is kept if inside, and each crossing segment adds its
+    intersection, which also ends a part when the segment leaves."""
+    c = x if axis == 0 else y
+    inside = c >= value if keep_greater else c <= value
+    if inside.all():
+        return [(x, y)]
+    if not inside.any():
+        return []
+    n = x.size
+    cross = np.zeros(n, bool)
+    cross[:-1] = inside[:-1] != inside[1:]
+    xn, yn, cn = np.roll(x, -1), np.roll(y, -1), np.roll(c, -1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t = np.where(cross, (value - c) / np.where(cross, cn - c, 1), 0)
+    ix, iy = x + t * (xn - x), y + t * (yn - y)
+    if axis == 0:
+        ix = np.where(cross, value, ix)
+    else:
+        iy = np.where(cross, value, iy)
+    leaving = cross & inside  # the part ends at this segment's intersection
+    mask = np.stack([inside, cross], axis=1).ravel()
+    px = np.stack([x, ix], axis=1).ravel()[mask]
+    py = np.stack([y, iy], axis=1).ravel()[mask]
+    ends = np.stack([np.zeros(n, bool), leaving], axis=1).ravel()[mask]
+    cuts = np.flatnonzero(ends) + 1
+    return [(a, b) for a, b in zip(np.split(px, cuts), np.split(py, cuts)) if a.size >= 2]
+
+
+def clip_line_rect(x, y, x0, y0, x1, y1):
+    parts = [(x, y)]
+    for axis, value, greater in ((0, x0, True), (0, x1, False), (1, y0, True), (1, y1, False)):
+        parts = [q for px, py in parts for q in clip_line_half(px, py, axis, value, greater)]
+        if not parts:
+            break
+    return parts
+
+
+def clean_line(x, y):
+    """Integer polyline without repeated consecutive points; None if fewer than 2 points remain."""
+    x = np.asarray(np.rint(x), np.int64)
+    y = np.asarray(np.rint(y), np.int64)
+    if x.size:
+        keep = np.ones(x.size, bool)
+        keep[1:] = (x[1:] != x[:-1]) | (y[1:] != y[:-1])
+        x, y = x[keep], y[keep]
+    return (x, y) if x.size >= 2 else None
+
+
+def cut_line(parts, tile_zoom, coord_bits, buffer):
+    """Cuts polylines (a list of (x, y) integer world-unit arrays, as cut_polygon) into buffered tiles:
+    {(tx, ty): [(x, y) tile-local int arrays]}."""
+    parts = [(np.asarray(x, np.float64), np.asarray(y, np.float64)) for x, y in parts if len(x) >= 2]
+    if not parts:
+        return {}
+    xmin = min(float(x.min()) for x, _ in parts)
+    xmax = max(float(x.max()) for x, _ in parts)
+    ymin = min(float(y.min()) for _, y in parts)
+    ymax = max(float(y.max()) for _, y in parts)
+    z = tile_zoom
+    tx0, ty0 = int(xmin) >> coord_bits, int(ymin) >> coord_bits
+    tx1, ty1 = int(xmax) >> coord_bits, int(ymax) >> coord_bits
+    while z > 0 and (tx0 != tx1 or ty0 != ty1):
+        z -= 1
+        tx0, ty0, tx1, ty1 = tx0 >> 1, ty0 >> 1, tx1 >> 1, ty1 >> 1
+    out = {}
+    _cut_line_node(parts, z, tx0, ty0, tile_zoom, coord_bits, buffer, out)
+    return out
+
+
+def _cut_line_node(parts, z, nx, ny, tile_zoom, coord_bits, buffer, out):
+    shift = coord_bits + tile_zoom - z
+    x0, y0 = (nx << shift) - buffer, (ny << shift) - buffer
+    x1, y1 = ((nx + 1) << shift) + buffer, ((ny + 1) << shift) + buffer
+    kept = [q for x, y in parts for q in clip_line_rect(x, y, x0, y0, x1, y1)]
+    if not kept:
+        return
+    if z == tile_zoom:
+        ox, oy = nx << coord_bits, ny << coord_bits
+        for cx, cy in kept:
+            line = clean_line(cx - ox, cy - oy)
+            if line is not None:
+                out.setdefault((nx, ny), []).append(line)
+        return
+    for dx in (0, 1):
+        for dy in (0, 1):
+            _cut_line_node(kept, z + 1, 2 * nx + dx, 2 * ny + dy, tile_zoom, coord_bits, buffer, out)

@@ -49,9 +49,17 @@ builder uses it.
 
 - `tools/measure_water.py <extract.osm.pbf> [--json out.json]`: reads an OSM extract and reports how large its water
   layers become in the pack encoding, per level. It needs Python 3 and numpy only; it includes a minimal PBF reader.
+- `tools/build_pack.py <extract.osm.pbf> <out_dir>`: builds the detail water layer of an extract (water areas as
+  ways and multipolygons, river and canal lines; intermittent water dropped; areas under 1 ha dropped), simplified per
+  level, cut into buffered tiles, written as one PMT file with `SOURCES.json`, `ATTRIBUTION.txt`, `LICENSE.txt` and
+  `MANIFEST.sha256`. The sea (from the water polygons) is next.
 - `tools/pmt.py dump|check FILE`: prints a PMT file's canonical dump, or checks every tile.
-- `tools/make_test_vectors.py`: writes the synthetic test vectors in `tests/vectors/`.
-- The pack builder is next.
+- `tools/pmt_crop.py`: cuts a region out of a PMT file by tile ranges (small test packs).
+- `tools/make_test_vectors.py`, `tools/make_synthetic_pack.py`: the test vectors, and invented geometry for renderer
+  benches (labelled as such in the file).
+- Library modules: `osmpbf.py` (a minimal PBF reader), `packgeom.py` (projection, simplification, tile cutting).
+
+Tests: `python -m unittest discover -s tests`.
 
 Source extracts go in `sources/` and outputs in `out/`. Both are git-ignored.
 
