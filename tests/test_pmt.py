@@ -31,6 +31,7 @@ class Vectors(unittest.TestCase):
                 data = pmt.build_pmt(**make())
                 self.assertEqual(data, (VECTORS / f"{name}.pmt").read_bytes())
                 self.assertEqual(pmt.dump(pmt.PmtFile(data)), (VECTORS / f"{name}.txt").read_bytes())
+        self.assertEqual(make_test_vectors.seam_rings_text(), (VECTORS / "water_seam_rings.txt").read_bytes())
 
     def test_round_trip_and_lookup(self):
         for name, make in make_test_vectors.VECTORS.items():

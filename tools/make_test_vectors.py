@@ -76,7 +76,55 @@ def zones():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
-VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones}
+SEAM_TILE = (1000, 1500)  # top-left tile of the 3 x 3 block the seam polygon covers
+
+
+def seam_rings():
+    """A rough polygon with two holes spanning a 3 x 3 tile block, in level world units (tz 12, 12 bits)."""
+    import math
+    import numpy as np
+    import packgeom as pg
+    rng = np.random.default_rng(11)
+    side = 1 << 12
+    ox, oy = SEAM_TILE[0] * side, SEAM_TILE[1] * side
+    cx, cy = ox + 1.5 * side, oy + 1.5 * side
+
+    def star(r0, r1, n, phase):
+        t = np.linspace(0, 2 * math.pi, n, endpoint=False) + phase
+        r = rng.uniform(r0, r1, n)
+        return np.rint(cx + r * np.cos(t)).astype(np.int64), np.rint(cy + r * np.sin(t)).astype(np.int64)
+
+    outer = pg.orient(*star(0.9 * side, 1.45 * side, 90, 0.0), True)
+    holes = []
+    for dx, dy in ((-0.9, -0.2), (0.7, 0.6)):  # two islands straddling tile borders
+        hx, hy = star(0.08 * side, 0.2 * side, 24, 0.3)
+        holes.append(pg.orient(hx + int(dx * side), hy + int(dy * side), False))
+    return [outer] + holes
+
+
+def water_seam():
+    """One polygon with holes cut into 3 x 3 buffered tiles: renderers must draw it as if it were never cut."""
+    import packgeom as pg
+    tiles = {}
+    for key, rings in pg.cut_polygon(seam_rings(), 12, 12, 32).items():
+        tiles[key] = [(POLYGON, 2, None, [list(zip(x.tolist(), y.tolist())) for x, y in rings])]
+    level = {"tile_zoom": 12, "zoom_min": 12, "zoom_max": 14, "coord_bits": 12, "buffer": 32, "tolerance_dm": 100,
+             "tiles": tiles}
+    return dict(layer_kind=pmt.KIND_WATER, levels=[level], strings=OSM_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+def seam_rings_text():
+    """The uncut seam polygon: 'ring <n>' then n lines 'x y', coordinates relative to SEAM_TILE's corner."""
+    side = 1 << 12
+    lines = []
+    for x, y in seam_rings():
+        lines.append(f"ring {x.size}")
+        lines += [f"{a - SEAM_TILE[0] * side} {b - SEAM_TILE[1] * side}" for a, b in zip(x.tolist(), y.tolist())]
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam}
 
 
 def main(argv):
@@ -87,6 +135,7 @@ def main(argv):
         (out / f"{name}.pmt").write_bytes(data)
         (out / f"{name}.txt").write_bytes(pmt.dump(pmt.PmtFile(data)))
         print(f"{name}: {len(data)} bytes")
+    (out / "water_seam_rings.txt").write_bytes(seam_rings_text())
     return 0
 
 
