@@ -1,17 +1,18 @@
 """Builds the detail water layer (PMT, FORMAT.md section 7.2) from an OpenStreetMap extract.
 
-Usage: python tools/build_pack.py <extract.osm.pbf> <out_dir> [--name NAME] [--sea water-polygons.shp]
+Usage: python tools/build_pack.py <extract.osm.pbf> <out_dir> [--name NAME] [--sea water-polygons-split-4326.zip]
 
 What goes in (README.md "Sources"):
 - water areas: natural=water, waterway=riverbank, landuse=reservoir, as closed ways and multipolygon relations;
   intermittent water and waste-water basins are left out; closed areas under 1 ha are dropped;
 - river and canal centre lines (waterway=river|canal);
-- the sea, from the osmdata.openstreetmap.de water polygons when --sea is given (not implemented yet: an inland
-  extract doesn't need it).
+- the sea (class 1), from the osmdata.openstreetmap.de water polygons when --sea is given; an inland extract
+  doesn't need it.
 
 Each area is simplified per level (L1 40 m, L2 10 m, L3 4 m), oriented (outer rings clockwise on screen), cut into
 buffered tiles and written as one PMT file with three levels, next to SOURCES.json, ATTRIBUTION.txt and
-LICENSE.txt. The coverage grid marks the zoom-8 cells where the extract has data.
+LICENSE.txt. The coverage grid marks the zoom-8 cells where the extract has data; a cell where most tiles are open sea
+defaults to "full", and only its other tiles are stored (FORMAT.md section 4.2).
 """
 
 import argparse
@@ -28,6 +29,7 @@ import numpy as np
 import osmpbf
 import packgeom as pg
 import pmt
+import shapefile
 
 TOOL = Path(__file__).resolve()
 LEVELS = [  # tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance (m)
@@ -212,6 +214,69 @@ def collect(path, log):
     return polys, lines, cells
 
 
+def sea_polygons(path, cells, log):
+    """Water polygons (class 1) from the osmdata split shapefile that meet the zoom-8 cells with data."""
+    if not cells:
+        return []
+    n = 1 << 8
+    xs = [c[0] for c in cells]
+    ys = [c[1] for c in cells]
+    lon_w, lon_e = min(xs) / n * 360 - 180, (max(xs) + 1) / n * 360 - 180
+    lat_n = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * min(ys) / n))))
+    lat_s = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * (max(ys) + 1) / n))))
+    polys = []
+    for stype, parts in shapefile.records_in_box(path, (lat_s, lon_w, lat_n, lon_e)):
+        if stype not in shapefile.POLYGON_TYPES:
+            continue
+        rings = []
+        for lon, lat in parts:
+            if lon.size >= 4 and lon[0] == lon[-1] and lat[0] == lat[-1]:
+                lon, lat = lon[:-1], lat[:-1]
+            if lon.size >= 3:
+                rings.append((lat, lon, shapefile.ring_is_outer(lon, lat)))
+        if rings:
+            polys.append((1, rings))
+    log(f"sea: {len(polys)} water polygons from {Path(path).name}")
+    return polys
+
+
+def full_square(bits, buf):
+    side = 1 << bits
+    return [(-buf, -buf), (side + buf, -buf), (side + buf, side + buf), (-buf, side + buf)]
+
+
+def apply_coverage(tiles, cells, tz, bits, buf):
+    """The coverage grid for a level, and its tiles without the open sea: in a zoom-8 cell where most tiles are only
+    the full square of sea, the cell defaults to full (2), those tiles are dropped and the cell's land tiles are stored
+    as empty tiles; elsewhere the cell is 1 (absent = empty)."""
+    sq = full_square(bits, buf)
+    is_open_sea = lambda feats: (len(feats) == 1 and feats[0][0] == pmt.POLYGON and feats[0][1] == 1
+                                 and len(feats[0][3]) == 1 and feats[0][3][0] == sq)
+    shift = tz - 8
+    per_cell = {}
+    for key, feats in tiles.items():
+        per_cell.setdefault((key[0] >> shift, key[1] >> shift), []).append((key, is_open_sea(feats)))
+    grid, out = {}, dict(tiles)
+    side = 1 << shift
+    for cell in cells:
+        members = per_cell.get(cell, [])
+        n_sea = sum(1 for _, sea in members if sea)
+        if n_sea * 2 > side * side:
+            grid[cell] = 2
+            present = {k for k, _ in members}
+            for key, sea in members:
+                if sea:
+                    del out[key]
+            for dx in range(side):
+                for dy in range(side):
+                    key = ((cell[0] << shift) + dx, (cell[1] << shift) + dy)
+                    if key not in present:
+                        out[key] = []  # land: stored empty, since an absent tile here would be sea
+        else:
+            grid[cell] = 1
+    return grid, out
+
+
 def build_level(polys, lines, level, log):
     tz, zmin, zmax, bits, buf, tol_m = level
     wb = tz + bits
@@ -251,6 +316,7 @@ def main(argv):
     ap.add_argument("extract")
     ap.add_argument("out_dir")
     ap.add_argument("--name", default=None, help="pack file name (default: the extract's name)")
+    ap.add_argument("--sea", default=None, help="osmdata water-polygons-split-4326.zip (for coastal extracts)")
     a = ap.parse_args(argv[1:])
     src = Path(a.extract)
     out = Path(a.out_dir)
@@ -262,12 +328,18 @@ def main(argv):
     head = osmpbf.header(src)
     stamp = head["replication_timestamp"] or int(src.stat().st_mtime)
     polys, lines, cells = collect(src, log)
+    if a.sea:
+        polys = sea_polygons(a.sea, cells, log) + polys
     levels = []
     for level in LEVELS:
-        tz = level[0]
-        levels.append({"tile_zoom": tz, "zoom_min": level[1], "zoom_max": level[2], "coord_bits": level[3],
-                       "buffer": level[4], "tolerance_dm": int(level[5] * 10), "grid": {c: 1 for c in cells},
-                       "tiles": build_level(polys, lines, level, log)})
+        tz, bits, buf = level[0], level[3], level[4]
+        grid, tiles = apply_coverage(build_level(polys, lines, level, log), cells, tz, bits, buf)
+        full = sum(1 for v in grid.values() if v == 2)
+        if full:
+            log(f"  {full} of {len(grid)} cells default to open sea; {len(tiles)} tiles stored")
+        levels.append({"tile_zoom": tz, "zoom_min": level[1], "zoom_max": level[2], "coord_bits": bits,
+                       "buffer": buf, "tolerance_dm": int(level[5] * 10), "full_class": 1, "grid": grid,
+                       "tiles": tiles})
     date = time.strftime("%Y-%m-%d", time.gmtime(stamp))
     commit = git_commit()
     strings = ["osm-water", CREDIT, "ODbL 1.0", "OpenStreetMap", date, f"pwca_maps {commit}"]

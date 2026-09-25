@@ -73,6 +73,32 @@ def records(data):
         yield stype, [(pts[a:b, 0].copy(), pts[a:b, 1].copy()) for a, b in zip(parts, parts[1:])]
 
 
+def records_in_box(path, box, stem=None):
+    """Streams (attributes-free) polygon/polyline records of a zipped .shp whose bounding box meets
+    box = (south, west, north, east), without reading the whole file into memory; yields (shape type, parts)."""
+    s, w, n, e = box
+    with zipfile.ZipFile(path) as zf:
+        shp, _dbf = _members(zf, stem)
+        with zf.open(shp) as f:
+            f.read(100)
+            while True:
+                head = f.read(8)
+                if len(head) < 8:
+                    return
+                _num, clen = struct.unpack(">ii", head)
+                body = f.read(2 * clen)
+                stype = struct.unpack_from("<i", body, 0)[0]
+                if stype not in POLYGON_TYPES and stype not in POLYLINE_TYPES:
+                    continue
+                xmin, ymin, xmax, ymax = struct.unpack_from("<4d", body, 4)
+                if xmax < w or xmin > e or ymax < s or ymin > n:
+                    continue
+                nparts, npoints = struct.unpack_from("<ii", body, 36)
+                parts = np.frombuffer(body, "<i4", nparts, 44).tolist() + [npoints]
+                pts = np.frombuffer(body, "<f8", 2 * npoints, 44 + 4 * nparts).reshape(-1, 2)
+                yield stype, [(pts[a:b, 0].copy(), pts[a:b, 1].copy()) for a, b in zip(parts, parts[1:])]
+
+
 def read_zip(path, stem=None):
     """[(attributes or None, shape type, parts)] from a zipped shapefile."""
     with zipfile.ZipFile(path) as zf:
