@@ -59,6 +59,8 @@ builder uses it.
   and no-wake zones layer from the Florida FWC State Boating Safety Zones (FAC 68D-24) and State Manatee
   Protection Zones (FAC 68C-22), mapped cautiously (seasons by whole months, partial times flagged; anchoring and
   propeller rules left out); the coverage grid holds only the cells with zones.
+- `tools/fetch_fwc_zones.py <out_dir>`: fetches those two FWC layers as GeoJSON (WGS 84) in pages by OBJECTID (the
+  server cuts large responses short), checks every feature arrived, and records URLs, time and SHA-256.
 - `tools/pmt.py dump|check FILE`: prints a PMT file's canonical dump, or checks every tile.
 - `tools/pmt_crop.py`: cuts a region out of a PMT file by tile ranges (small test packs).
 - `tools/build_overview.py <natural_earth_dir> <out.pmt>`: the overview (base layer, z2-9) from the six Natural
