@@ -54,6 +54,7 @@ LEVELS = [  # tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance (m), 
     (12, 14, 16, 16, 512, 4.0, 0.0),
 ]
 MIN_AREA_M2 = 10_000.0
+TILE_FEATURE_BUDGET = 12_000  # under the display's 16,384 features or parts per tile, with room (fit_tile)
 REGION_ZOOM = 7  # regions of z7 tiles (about 300 km): one worker job each
 REGION_MARGIN_DEG = 0.05  # features within this of a region are cut for it (the largest tile buffer is < 0.003 deg)
 MAX_FILE_BYTES = 2_000_000_000  # under 2 GiB, with room for the header block and index
@@ -391,6 +392,27 @@ def _stores(store_dir):
     return _STORES[store_dir]
 
 
+def _line_length(feature):
+    return sum(math.hypot(x1 - x0, y1 - y0) for part in feature[3] for (x0, y0), (x1, y1) in zip(part, part[1:]))
+
+
+def fit_tile(feats):
+    """A tile within TILE_FEATURE_BUDGET features and parts: the display decodes a tile into fixed scratch (16,384
+    features or parts, pwca_argos map_view.c) and skips a bigger one whole. Over the budget, the shortest lines go first
+    (2026-10-03: two zoom-8 tiles of the Yukon-Kuskokwim delta held about 18,000 river pieces of 3 points or fewer).
+    Returns (features kept, lines dropped)."""
+    parts = sum(len(f[3]) for f in feats)
+    if len(feats) <= TILE_FEATURE_BUDGET and parts <= TILE_FEATURE_BUDGET:
+        return feats, 0
+    drop, n = set(), len(feats)
+    for i in sorted((i for i, f in enumerate(feats) if f[0] == pmt.LINE), key=lambda i: _line_length(feats[i])):
+        if n - len(drop) <= TILE_FEATURE_BUDGET and parts <= TILE_FEATURE_BUDGET:
+            break
+        drop.add(i)
+        parts -= len(feats[i][3])
+    return [f for i, f in enumerate(feats) if i not in drop], len(drop)
+
+
 def region_job(job):
     """Worker: one region's tiles for every level, encoded: (region, [(grid, {key: blob}) per level], features)."""
     store_dir, region, cells = job
@@ -402,7 +424,14 @@ def region_job(job):
     for level in LEVELS:
         tz, bits, buf = level[0], level[3], level[4]
         grid, tiles = apply_coverage(level_tiles(polys, lines, level, region), cells, tz, bits, buf)
-        out.append((grid, {key: pmt.encode_tile(feats, bits, buf) for key, feats in tiles.items()}))
+        enc = {}
+        for key, feats in tiles.items():
+            feats, dropped = fit_tile(feats)
+            if dropped:
+                print(f"tile z{tz} {key[0]},{key[1]}: {dropped} shortest lines left out (over the display's "
+                      f"{TILE_FEATURE_BUDGET} features or parts)", flush=True)
+            enc[key] = pmt.encode_tile(feats, bits, buf)
+        out.append((grid, enc))
     return region, out, len(polys) + len(lines)
 
 
