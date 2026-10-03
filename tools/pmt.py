@@ -34,6 +34,7 @@ GRID_BYTES = GRID_SIDE * GRID_SIDE // 4
 
 POLYGON, LINE = 1, 2
 KIND_BASE, KIND_WATER, KIND_ZONES = 1, 2, 3
+KIND_ROADS = 4  # PROPOSAL for FORMAT 1.1 (lines; classes in build_pack.ROAD_CLASSES); no display reads it yet
 LEVEL_FLAG_GRID = 1
 ID_FIELDS = ("layer", "credit", "license", "source", "source_date", "build")
 

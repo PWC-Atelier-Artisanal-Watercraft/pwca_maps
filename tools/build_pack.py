@@ -47,14 +47,26 @@ import pmt
 import shapefile
 
 TOOL = Path(__file__).resolve()
-LEVELS = [  # tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance (m), min area of an inland area (m2)
-    (8, 8, 9, 12, 32, 150.0, 250_000.0),  # zoomed out (the owner, 2026-10-02: the whole map, every zoom)
-    (10, 10, 11, 12, 32, 40.0, 0.0),
-    (12, 12, 13, 12, 32, 10.0, 0.0),
-    (12, 14, 16, 16, 512, 4.0, 0.0),
+# tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance (m), min area of an inland area (m2), line classes kept
+# (None: all).
+LEVELS = [
+    (8, 8, 9, 12, 32, 150.0, 250_000.0, None),  # zoomed out (the owner, 2026-10-02: the whole map, every zoom)
+    (10, 10, 11, 12, 32, 40.0, 0.0, None),
+    (12, 12, 13, 12, 32, 10.0, 0.0, None),
+    (12, 14, 16, 16, 512, 4.0, 0.0, None),
+]
+# The roads layer (--layer roads; layer_kind 4, a PROPOSAL for FORMAT 1.1, not yet read by any display): lines only,
+# the larger roads from the zoomed-out levels, every drivable road from zoom 14 (the owner, 2026-10-02: "I want the
+# entire US map").
+ROAD_LEVELS = [
+    (8, 8, 9, 12, 32, 150.0, 0.0, {1, 2}),
+    (10, 10, 11, 12, 32, 40.0, 0.0, {1, 2, 3}),
+    (12, 12, 13, 12, 32, 10.0, 0.0, {1, 2, 3, 4, 5}),
+    (12, 14, 16, 16, 512, 4.0, 0.0, {1, 2, 3, 4, 5, 6}),
 ]
 MIN_AREA_M2 = 10_000.0
 TILE_FEATURE_BUDGET = 12_000  # under the display's 16,384 features or parts per tile, with room (fit_tile)
+TILE_POINT_BUDGET = 100_000  # under the display's 131,072 points per tile, with room (fit_tile)
 REGION_ZOOM = 7  # regions of z7 tiles (about 300 km): one worker job each
 REGION_MARGIN_DEG = 0.05  # features within this of a region are cut for it (the largest tile buffer is < 0.003 deg)
 MAX_FILE_BYTES = 2_000_000_000  # under 2 GiB, with room for the header block and index
@@ -107,6 +119,25 @@ def way_kind(tags):
     return None if a is None and line is None else (a, line)
 
 
+# Road classes (the roads layer, PROPOSAL): a link takes its road's class. Service roads, tracks, paths, footways and
+# roads under construction or proposed are left out.
+ROAD_CLASSES = {"motorway": 1, "motorway_link": 1, "trunk": 2, "trunk_link": 2, "primary": 3, "primary_link": 3,
+                "secondary": 4, "secondary_link": 4, "tertiary": 5, "tertiary_link": 5, "unclassified": 6,
+                "residential": 6, "living_street": 6}
+
+
+def road_kind(tags):
+    """(None, road class) of a road way, or None."""
+    c = ROAD_CLASSES.get(tags.get("highway"))
+    if c is None or tags.get("area") == "yes":
+        return None
+    return (None, c)
+
+
+def levels_of(layer):
+    return ROAD_LEVELS if layer == "roads" else LEVELS
+
+
 # ---- rings from relations -------------------------------------------------------------------------------------------
 
 def assemble_rings(way_refs):
@@ -140,6 +171,54 @@ def assemble_rings(way_refs):
         else:
             unclosed += 1
     return rings, unclosed
+
+
+def join_lines(way_refs):
+    """Joins open ways (node id arrays) end to end where exactly two of them meet at a node, so a road split at every
+    bridge or tag change becomes one line (fewer features per tile, no gaps from a tile's budget). Closed ways stay
+    alone. Returns the chains as node id arrays."""
+    n = len(way_refs)
+    ends = {}
+    for i, r in enumerate(way_refs):
+        if len(r) >= 2 and r[0] != r[-1]:
+            ends.setdefault(int(r[0]), []).append(i)
+            ends.setdefault(int(r[-1]), []).append(i)
+    used = [False] * n
+
+    def other(node, cur):
+        at = ends.get(node, ())
+        if len(at) != 2:
+            return None
+        j = at[1] if at[0] == cur else at[0]
+        return None if used[j] or j == cur else j
+
+    chains = []
+    for i in range(n):
+        if used[i]:
+            continue
+        used[i] = True
+        r = way_refs[i]
+        if len(r) < 2 or r[0] == r[-1]:
+            chains.append(np.asarray(r, np.int64))
+            continue
+        fwd, back = list(r), []
+        # forward from the last node, then backward from the first
+        cur, node = i, int(fwd[-1])
+        while (j := other(node, cur)) is not None:
+            used[j] = True
+            seg = list(way_refs[j])
+            seg = seg if int(seg[0]) == node else seg[::-1]
+            fwd.extend(seg[1:])
+            cur, node = j, int(fwd[-1])
+        cur, node = i, int(fwd[0])
+        while (j := other(node, cur)) is not None:
+            used[j] = True
+            seg = list(way_refs[j])
+            seg = seg if int(seg[-1]) == node else seg[::-1]
+            back = seg[:-1] + back
+            cur, node = j, int(seg[0])
+        chains.append(np.asarray(back + fwd, np.int64))
+    return chains
 
 
 def inside(px, py, x, y):
@@ -176,14 +255,19 @@ def sha256(path):
     return h.hexdigest()
 
 
-def collect_store(path, store_dir, log, processes, sea=None):
+def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
     """Reads the extract into feature stores under store_dir ("poly": sea, then areas from ways, then from relations;
-    "line": river and canal lines), in the order a tile draws them. Returns (the zoom-8 cells with data, stats)."""
+    "line": river and canal lines, or with layer "roads" the road lines only), in the order a tile draws them. Returns
+    (the zoom-8 cells with data, stats)."""
     t0 = time.time()
-    rels = osmpbf.relations_parallel(path, water_relation, processes)
-    member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
-    log(f"relations: {len(rels)} water multipolygons, {member_ids.size} member ways ({time.time() - t0:.0f} s)")
-    ws = osmpbf.ways_parallel(path, way_kind, member_ids, processes)  # (id, (area, line) or () for members, refs)
+    if layer == "roads":
+        rels, member_ids, sea = [], np.zeros(0, np.int64), None
+        ws = osmpbf.ways_parallel(path, road_kind, member_ids, processes)
+    else:
+        rels = osmpbf.relations_parallel(path, water_relation, processes)
+        member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
+        log(f"relations: {len(rels)} water multipolygons, {member_ids.size} member ways ({time.time() - t0:.0f} s)")
+        ws = osmpbf.ways_parallel(path, way_kind, member_ids, processes)  # (id, (area, line) or () for members, refs)
     del member_ids
     refs_total = sum(len(r) for _, _, r in ws)
     log(f"ways: {len(ws)}, {refs_total} node references ({time.time() - t0:.0f} s)")
@@ -218,6 +302,20 @@ def collect_store(path, store_dir, log, processes, sea=None):
             stats["sea"] += 1
         log(f"sea: {stats['sea']} water polygons from {Path(sea).name} ({time.time() - t0:.0f} s)")
     deg = featurestore.degrees
+    if layer == "roads":
+        # Each class's ways joined end to end where two of them meet, then stored as lines (join_lines).
+        by_class = {}
+        for _wid, kind, refs in ws:
+            if kind:
+                by_class.setdefault(kind[1], []).append(refs)
+        n_ways = sum(len(v) for v in by_class.values())
+        for lc in sorted(by_class):
+            for chain in join_lines(by_class[lc]):
+                la, lo = coords(chain)
+                if la.size >= 2:
+                    lines.add(lc, [(la, lo, False)])
+        log(f"roads: {n_ways} ways joined into {len(lines)} lines ({time.time() - t0:.0f} s)")
+        ws = []
     for wid, kind, refs in ws:
         cls, lc = kind if kind else (None, None)
         if cls is not None and len(refs) >= 4 and refs[0] == refs[-1]:
@@ -338,7 +436,7 @@ def apply_coverage(tiles, cells, tz, bits, buf):
 def level_tiles(polys, lines, level, region=None):
     """One level's tiles {(x, y): features} from polygons [(class, [(lat, lon, outer)])] and lines
     [(class, lat, lon)], drawn in that order; with region = (rz, rx, ry), only that quadtree node's tiles."""
-    tz, zmin, zmax, bits, buf, tol_m, min_m2 = level
+    tz, zmin, zmax, bits, buf, tol_m, min_m2, line_classes = level
     wb = tz + bits
     tiles = {}
     for cls, rings in polys:
@@ -361,6 +459,8 @@ def level_tiles(polys, lines, level, region=None):
             tiles.setdefault(key, []).append(
                 (pmt.POLYGON, cls, None, [list(zip(x.tolist(), y.tolist())) for x, y in parts]))
     for cls, la, lo in lines:
+        if line_classes is not None and cls not in line_classes:
+            continue
         x, y = pg.world_xy(lo, la, wb)
         keep = pg.douglas_peucker(x, y, tol_m * pg.units_per_metre(float(np.mean(la)), wb))
         line = pg.clean_line(x[keep], y[keep])
@@ -400,28 +500,31 @@ def fit_tile(feats):
     """A tile within TILE_FEATURE_BUDGET features and parts: the display decodes a tile into fixed scratch (16,384
     features or parts, pwca_argos map_view.c) and skips a bigger one whole. Over the budget, the shortest lines go first
     (2026-10-03: two zoom-8 tiles of the Yukon-Kuskokwim delta held about 18,000 river pieces of 3 points or fewer).
-    Returns (features kept, lines dropped)."""
+    The same for TILE_POINT_BUDGET points (the display's 131,072). Returns (features kept, lines dropped)."""
     parts = sum(len(f[3]) for f in feats)
-    if len(feats) <= TILE_FEATURE_BUDGET and parts <= TILE_FEATURE_BUDGET:
+    points = sum(len(p) for f in feats for p in f[3])
+    fits = lambda n: n <= TILE_FEATURE_BUDGET and parts <= TILE_FEATURE_BUDGET and points <= TILE_POINT_BUDGET
+    if fits(len(feats)):
         return feats, 0
     drop, n = set(), len(feats)
     for i in sorted((i for i, f in enumerate(feats) if f[0] == pmt.LINE), key=lambda i: _line_length(feats[i])):
-        if n - len(drop) <= TILE_FEATURE_BUDGET and parts <= TILE_FEATURE_BUDGET:
+        if fits(n - len(drop)):
             break
         drop.add(i)
         parts -= len(feats[i][3])
+        points -= sum(len(p) for p in feats[i][3])
     return [f for i, f in enumerate(feats) if i not in drop], len(drop)
 
 
 def region_job(job):
     """Worker: one region's tiles for every level, encoded: (region, [(grid, {key: blob}) per level], features)."""
-    store_dir, region, cells = job
+    store_dir, region, cells, layer = job
     poly_store, line_store = _stores(store_dir)
     box = region_box_e7(*region, REGION_MARGIN_DEG)
     polys = [poly_store.feature(i) for i in poly_store.select(*box)]
     lines = [(c, rings[0][0], rings[0][1]) for c, rings in (line_store.feature(i) for i in line_store.select(*box))]
     out = []
-    for level in LEVELS:
+    for level in levels_of(layer):
         tz, bits, buf = level[0], level[3], level[4]
         grid, tiles = apply_coverage(level_tiles(polys, lines, level, region), cells, tz, bits, buf)
         enc = {}
@@ -470,6 +573,8 @@ def main(argv):
     ap.add_argument("--keep-store", action="store_true", help="keep the feature store (<out_dir>/store)")
     ap.add_argument("--reuse-store", action="store_true",
                     help="skip the passes over the extract: cut from a complete store kept by an earlier run")
+    ap.add_argument("--layer", choices=("water", "roads"), default="water",
+                    help="water (layer_kind 2), or roads (layer_kind 4: a FORMAT 1.1 PROPOSAL no display reads yet)")
     a = ap.parse_args(argv[1:])
     if not 0 <= a.region_zoom <= 8:
         ap.error("--region-zoom must be 0-8 (regions hold whole zoom-8 coverage cells)")
@@ -492,7 +597,7 @@ def main(argv):
     else:
         if store_dir.exists():
             shutil.rmtree(store_dir)
-        cells, _ = collect_store(src, store_dir, log, a.processes, a.sea)
+        cells, _ = collect_store(src, store_dir, log, a.processes, a.sea, a.layer)
         np.save(store_dir / "cells.npy", np.array(sorted(cells), np.int32).reshape(-1, 2))
         done_marker.write_text(f"{src.name} {stamp}\n", encoding="utf-8")
     gc.collect()
@@ -502,25 +607,27 @@ def main(argv):
 
     date = time.strftime("%Y-%m-%d", time.gmtime(stamp))
     commit = git_commit()
-    strings = ["osm-water", CREDIT, "ODbL 1.0", "OpenStreetMap", date, f"pwca_maps {commit}"]
+    roads = a.layer == "roads"
+    strings = ["osm-roads" if roads else "osm-water", CREDIT, "ODbL 1.0", "OpenStreetMap", date, f"pwca_maps {commit}"]
     files = []  # (path, bytes, sha256, tiles per level)
+    lv_table = levels_of(a.layer)
 
     def new_acc():
-        return [({}, {}) for _ in LEVELS]  # per level: grid, tiles
+        return [({}, {}) for _ in lv_table]  # per level: grid, tiles
 
     def flush(acc):
         levels = []
-        for (grid, tiles), (tz, zmin, zmax, bits, buf, tol, _min_m2) in zip(acc, LEVELS):
+        for (grid, tiles), (tz, zmin, zmax, bits, buf, tol, _min_m2, _cls) in zip(acc, lv_table):
             levels.append({"tile_zoom": tz, "zoom_min": zmin, "zoom_max": zmax, "coord_bits": bits, "buffer": buf,
                            "tolerance_dm": int(tol * 10), "full_class": 1, "grid": grid, "tiles": tiles})
-        data = pmt.build_pmt(layer_kind=pmt.KIND_WATER, levels=levels, strings=strings,
+        data = pmt.build_pmt(layer_kind=pmt.KIND_ROADS if roads else pmt.KIND_WATER, levels=levels, strings=strings,
                              ids=dict(zip(pmt.ID_FIELDS, range(6))), build_time=int(time.time()), data_time=stamp)
         path = out / f"{name}.part{len(files) + 1}.pmt"
         path.write_bytes(data)
         files.append((path, len(data), hashlib.sha256(data).hexdigest(), [len(t) for _, t in acc]))
         log(f"wrote {path.name}: {len(data) / 1e6:.1f} MB, tiles per level {[len(t) for _, t in acc]}")
 
-    jobs = [(str(store_dir), region, rc) for region, rc in regions.items()]
+    jobs = [(str(store_dir), region, rc, a.layer) for region, rc in regions.items()]
     acc, acc_bytes, done, last_log = new_acc(), 0, 0, time.time()
     pool = multiprocessing.get_context("spawn").Pool(a.processes) if a.processes > 1 else None
     try:
@@ -564,7 +671,7 @@ def main(argv):
         sources.append({"name": "OpenStreetMap water polygons (osmdata.openstreetmap.de)", "license": "ODbL 1.0",
                         "file": Path(a.sea).name, "sha256": sha256(a.sea)})
     info = {
-        "format": "PMT 1.0 (FORMAT.md)",
+        "format": "PMT 1.1 PROPOSAL: roads, layer_kind 4 (FORMAT.md)" if roads else "PMT 1.0 (FORMAT.md)",
         "tool": {"repository": "https://github.com/PWC-Atelier-Artisanal-Watercraft/pwca_maps", "commit": commit},
         "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "sources": sources,
