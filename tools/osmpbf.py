@@ -483,6 +483,55 @@ def nodes_e7_parallel(path, needed, processes, cell_zoom=None):
     return lat, lon, ({(c // n, c % n) for c in cells} if cell_zoom is not None else None)
 
 
+def _tagged_nodes_in(block, key, want):
+    """Dense nodes that carry the tag `key` and that want(tags) accepts: [(id, lat_e7, lon_e7, tags)]. Only nodes with
+    that key are decoded in Python; the rest are skipped with numpy (most nodes have no tags at all)."""
+    strings, groups, gran, lat_off, lon_off = block
+    try:
+        kidx = strings.index(key)
+    except ValueError:
+        return []
+    out = []
+    for g in groups:
+        for fn, dense in fields(g):
+            if fn != 2:
+                continue
+            ids = la = lo = kv = None
+            for f2, v in fields(dense):
+                if f2 == 1:
+                    ids = np.cumsum(zigzag(varints(v)))
+                elif f2 == 8:
+                    la = np.cumsum(zigzag(varints(v)))
+                elif f2 == 9:
+                    lo = np.cumsum(zigzag(varints(v)))
+                elif f2 == 10:
+                    kv = varints(v)
+            if ids is None or kv is None or not kv.size:
+                continue
+            z = kv == 0
+            node_of = np.cumsum(z) - z  # the node each entry belongs to (its delimiter included)
+            starts = np.r_[0, np.flatnonzero(z)[:-1] + 1]
+            off = np.arange(kv.size) - starts[node_of]
+            hits = np.unique(node_of[np.flatnonzero((kv == kidx) & (off % 2 == 0) & ~z)])
+            for n in hits.tolist():
+                s = int(starts[n])
+                e = s
+                while e < kv.size and kv[e] != 0:
+                    e += 1
+                pairs = kv[s:e]
+                tags = {strings[int(pairs[i])]: strings[int(pairs[i + 1])] for i in range(0, len(pairs) - 1, 2)}
+                if want(tags):
+                    out.append((int(ids[n]), int(_e7(np.int64(lat_off + gran * la[n]))),
+                                int(_e7(np.int64(lon_off + gran * lo[n]))), tags))
+    return out
+
+
+def tagged_nodes_parallel(path, key, want, processes):
+    """[(node id, lat_e7, lon_e7, tags)] for dense nodes with the tag `key` that want(tags) accepts; want must be a
+    module-level function."""
+    return map_blocks(path, _tagged_nodes_in, (key, want), processes)
+
+
 def relations_parallel(path, want, processes):
     """Like relations(); `want` must be a module-level function."""
     return map_blocks(path, _relations_in, (want,), processes)
