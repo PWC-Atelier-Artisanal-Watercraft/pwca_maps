@@ -10,8 +10,10 @@ What goes in (README.md "Sources"):
 - the sea (class 1), from the osmdata.openstreetmap.de water polygons when --sea is given; an inland extract
   doesn't need it.
 
-Each area is simplified per level (L1 40 m, L2 10 m, L3 4 m), oriented (outer rings clockwise on screen), cut into
-buffered tiles and written as PMT files with three levels, next to SOURCES.json, ATTRIBUTION.txt and LICENSE.txt.
+Each area is simplified per level (L0 150 m, L1 40 m, L2 10 m, L3 4 m), oriented (outer rings clockwise on screen),
+cut into buffered tiles and written as PMT files with four levels, next to SOURCES.json, ATTRIBUTION.txt and
+LICENSE.txt. L0 (cut at zoom 8, serving zooms 8 and 9: the display's zoomed-out views, 2026-10-02) also leaves out
+inland areas under 25 ha, which are under a few pixels there.
 The coverage grid marks the zoom-8 cells where the extract has data; a cell where most tiles are open sea defaults to
 "full", and only its other tiles are stored (FORMAT.md section 4.2).
 
@@ -45,10 +47,11 @@ import pmt
 import shapefile
 
 TOOL = Path(__file__).resolve()
-LEVELS = [  # tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance (m)
-    (10, 10, 11, 12, 32, 40.0),
-    (12, 12, 13, 12, 32, 10.0),
-    (12, 14, 16, 16, 512, 4.0),
+LEVELS = [  # tile_zoom, zoom_min, zoom_max, coord_bits, buffer, tolerance (m), min area of an inland area (m2)
+    (8, 8, 9, 12, 32, 150.0, 250_000.0),  # zoomed out (the owner, 2026-10-02: the whole map, every zoom)
+    (10, 10, 11, 12, 32, 40.0, 0.0),
+    (12, 12, 13, 12, 32, 10.0, 0.0),
+    (12, 14, 16, 16, 512, 4.0, 0.0),
 ]
 MIN_AREA_M2 = 10_000.0
 REGION_ZOOM = 7  # regions of z7 tiles (about 300 km): one worker job each
@@ -334,19 +337,24 @@ def apply_coverage(tiles, cells, tz, bits, buf):
 def level_tiles(polys, lines, level, region=None):
     """One level's tiles {(x, y): features} from polygons [(class, [(lat, lon, outer)])] and lines
     [(class, lat, lon)], drawn in that order; with region = (rz, rx, ry), only that quadtree node's tiles."""
-    tz, zmin, zmax, bits, buf, tol_m = level
+    tz, zmin, zmax, bits, buf, tol_m, min_m2 = level
     wb = tz + bits
     tiles = {}
     for cls, rings in polys:
         world = []
+        upm = 0.0
         for la, lo, outer in rings:
             x, y = pg.world_xy(lo, la, wb)
-            x, y = pg.simplify_ring(x, y, tol_m * pg.units_per_metre(float(np.mean(la)), wb))
+            upm = pg.units_per_metre(float(np.mean(la)), wb)
+            x, y = pg.simplify_ring(x, y, tol_m * upm)
             r = pg.clean_ring(x, y)
             if r is None:
                 continue
             world.append(pg.orient(*r, outer=outer))
         if not world or not any(pg.area2(x, y) > 0 for x, y in world):
+            continue
+        # The level's smallest inland area (the sea, class 1, is never left out): outer rings minus holes.
+        if min_m2 and cls != 1 and sum(pg.area2(x, y) for x, y in world) / 2 < min_m2 * upm * upm:
             continue
         for key, parts in pg.cut_polygon(world, tz, bits, buf, region).items():
             tiles.setdefault(key, []).append(
@@ -473,7 +481,7 @@ def main(argv):
 
     def flush(acc):
         levels = []
-        for (grid, tiles), (tz, zmin, zmax, bits, buf, tol) in zip(acc, LEVELS):
+        for (grid, tiles), (tz, zmin, zmax, bits, buf, tol, _min_m2) in zip(acc, LEVELS):
             levels.append({"tile_zoom": tz, "zoom_min": zmin, "zoom_max": zmax, "coord_bits": bits, "buffer": buf,
                            "tolerance_dm": int(tol * 10), "full_class": 1, "grid": grid, "tiles": tiles})
         data = pmt.build_pmt(layer_kind=pmt.KIND_WATER, levels=levels, strings=strings,
