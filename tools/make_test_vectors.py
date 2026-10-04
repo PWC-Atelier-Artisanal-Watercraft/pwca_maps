@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 import pmt
-from pmt import LINE, POLYGON
+from pmt import LINE, POINT, POLYGON
 
 BUILD_TIME = 1790208000
 DATA_TIME = 1790121600
@@ -153,9 +153,10 @@ ROAD_STRINGS = ["osm-roads", "© OpenStreetMap contributors", "ODbL 1.0", "OpenS
 def roads():
     """A roads file (layer kind 4, version 1.1): a zoomed-out level with a coverage grid and two classes, and a detail
     level with all six classes crossing each other, so a renderer's class order shows (a larger road over a smaller
-    one), with lines running into the buffer, a class no renderer knows (7: never drawn), and two links (a motorway
-    ramp, class 9, crossing the primary road and the residential roads; a primary link, class 11, crossing the
-    tertiary road): a link is drawn thinner than its road, above the smaller classes."""
+    one), with lines running into the buffer, classes no renderer knows (0, 7, 8, 14 and the largest a tile can hold:
+    never drawn), and two links (a motorway ramp, class 9, crossing the primary road and the residential roads; a
+    primary link, class 11, crossing the tertiary road and running under the motorway): a link is drawn thinner than
+    its road, above the smaller classes and under the larger ones."""
     l0 = {"tile_zoom": 8, "zoom_min": 8, "zoom_max": 9, "coord_bits": 12, "buffer": 64, "tolerance_dm": 1500,
           "grid": {(40, 90): 1, (41, 90): 1},
           "tiles": {(40, 90): [(LINE, 1, None, [[(-64, 2000), (1500, 2100), (4160, 1800)]]),
@@ -169,10 +170,83 @@ def roads():
               (LINE, 1, None, [[(lo, 50000), (32768, 50000), (50000, 20000), (hi, 20000)]]),
               (LINE, 7, None, [[(lo, 60000), (hi, 60000)]]),
               (LINE, 9, None, [[(10000, lo), (10000, 50000)]]),
-              (LINE, 11, None, [[(lo, 30000), (25000, 30000)]])]
+              (LINE, 11, None, [[(lo, 30000), (48000, 30000)]]),
+              (LINE, 0, None, [[(lo, 61000), (hi, 61000)]]),
+              (LINE, 8, None, [[(lo, 62000), (hi, 62000)]]),
+              (LINE, 14, None, [[(lo, 63000), (hi, 63000)]]),
+              (LINE, (1 << 29) - 1, None, [[(lo, 64000), (hi, 64000)]])]
     l1 = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 512, "tolerance_dm": 40,
           "tiles": {(650, 1450): detail, (651, 1450): []}}
     return dict(layer_kind=pmt.KIND_ROADS, levels=[l0, l1], strings=ROAD_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+def roads_dense():
+    """One detail tile with more road segments than a renderer draws between two looks at its clock: a residential
+    zigzag of 400 points (399 segments), then a motorway. A renderer whose time for the roads runs out part way through
+    the tile leaves the rest undrawn (the zigzag's later segments and the motorway, which is drawn last)."""
+    zig = [(1000 + 150 * i, 20000 if i % 2 == 0 else 24000) for i in range(400)]
+    level = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 512, "tolerance_dm": 40,
+             "tiles": {(700, 1400): [(LINE, 6, None, [zig]), (LINE, 1, None, [[(-512, 40000), (66048, 40000)]])]}}
+    return dict(layer_kind=pmt.KIND_ROADS, levels=[level], strings=ROAD_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+PLACE_STRINGS = ["osm-places", "© OpenStreetMap contributors", "ODbL 1.0", "OpenStreetMap", "2026-09-20",
+                 "test-vectors"]
+
+
+def places_raw_tile():
+    """A places tile as bytes, with two names a reader must skip and keep the tile (FORMAT.md section 6): a control
+    character, and bytes that are not UTF-8. The reference encoder refuses to write such names, so the tile is put
+    together by hand: class 2 "Good" at (100, 100), class 3 with a tab in its name at (200, 300), class 3 with a
+    broken UTF-8 sequence at (300, 500), class 4 "Also good" at (400, 700)."""
+    out = bytearray()
+    px = py = 0
+    for cls, x, y, name in ((2, 100, 100, b"Good"), (3, 200, 300, b"Tab\there"), (3, 300, 500, b"Bro\xc3ken"),
+                            (4, 400, 700, b"Also good")):
+        pmt.put_varint(out, POINT | (cls << 3))
+        pmt.put_varint(out, pmt.zigzag(x - px))
+        pmt.put_varint(out, pmt.zigzag(y - py))
+        out.append(len(name))
+        out += name
+        px, py = x, y
+    return bytes(out)
+
+
+def places():
+    """A places file (layer kind 5, version 1.1): a zoomed-out level with one city; a detail level with every class,
+    names with accents (Latin-1, Latin Extended-A, the Hawaiian okina), a name of the full 127 bytes, a class no
+    renderer knows (9), two places on one spot, an empty tile, and a tile with two names a reader skips."""
+    l0 = {"tile_zoom": 8, "zoom_min": 8, "zoom_max": 9, "coord_bits": 12, "buffer": 0, "tolerance_dm": 0,
+          "grid": {(40, 90): 1},
+          "tiles": {(40, 90): [(POINT, 1, None, (2000, 2100, "Port Example".encode()))]}}
+    detail = [(POINT, 1, None, (32768, 32768, "Port Example".encode())),
+              (POINT, 2, None, (10000, 12000, "Montréal-Ouest".encode())),
+              (POINT, 2, None, (50000, 12000, "Mazatlán".encode())),
+              (POINT, 3, None, (20000, 40000, "Māʻili".encode())),
+              (POINT, 3, None, (20000, 40000, "Twin".encode())),
+              (POINT, 4, None, (60000, 60000, ("L" + "o" * 121 + "ngest").encode())),
+              (POINT, 4, None, (0, 65535, "Corner".encode())),
+              (POINT, 9, None, (40000, 50000, "Unknown class".encode()))]
+    l1 = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 0, "tolerance_dm": 0,
+          "tiles": {(650, 1450): detail, (651, 1450): [], (652, 1450): places_raw_tile()}}
+    assert len(detail[5][3][2]) == 127
+    return dict(layer_kind=pmt.KIND_PLACES, levels=[l0, l1], strings=PLACE_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+def places_dense():
+    """One detail tile with more places than a display keeps as label candidates: 3 towns, 100 villages on a grid and
+    150 hamlets on a diagonal. A display keeps the highest ranks first and, within a rank, the nearest to the craft."""
+    feats = [(POINT, 2, None, (10000, 10000, b"Town A")), (POINT, 2, None, (50000, 20000, b"Town B")),
+             (POINT, 2, None, (30000, 60000, b"Town C"))]
+    feats += [(POINT, 3, None, (3000 + 6000 * i, 3000 + 6000 * j, f"V{i}-{j}".encode()))
+              for i in range(10) for j in range(10)]
+    feats += [(POINT, 4, None, (1000 + 400 * k, 64000 - 400 * k, f"H{k}".encode())) for k in range(150)]
+    level = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 0, "tolerance_dm": 0,
+             "tiles": {(660, 1460): feats}}
+    return dict(layer_kind=pmt.KIND_PLACES, levels=[level], strings=PLACE_STRINGS, ids=IDS,
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
@@ -237,7 +311,8 @@ def seam_rings_text():
 
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
-           "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam}
+           "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam,
+           "roads_dense": roads_dense, "places": places, "places_dense": places_dense}
 
 
 def main(argv):

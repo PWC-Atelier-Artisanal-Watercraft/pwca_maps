@@ -273,9 +273,29 @@ The builder's levels (`tools/build_pack.py --layer roads`):
 ### 7.5 Places (`layer_kind` 5, version 1.1): named places (OpenStreetMap)
 
 Points only (section 6), one per place, each with its name. No attribute records. Classes, from the OSM `place` tag of
-a node that has a `name`: 1 city, 2 town, 3 village, 4 hamlet. The builder's levels follow the roads' (L0 cities; L1
-and towns; L2 and villages; L3 and hamlets). A renderer draws a label for a point or leaves it out (by class, by the
-room on the screen); it never draws a class it does not know.
+a node that has a name: 1 city, 2 town, 3 village, 4 hamlet. A renderer draws a label for a point or leaves it out (by
+class, by the room on the screen, or because its font lacks a character of the name); it never draws a class it does
+not know.
+
+The builder's levels (`tools/build_places.py`), with the roads' zooms:
+
+| Level | Tile zoom | Serves | Bits | Buffer | Classes |
+|---|---|---|---|---|---|
+| L0 | 8 | 8 to 9 | 12 | 0 | 1 |
+| L1 | 10 | 10 to 11 | 12 | 0 | 1, 2 |
+| L2 | 12 | 12 to 13 | 12 | 0 | 1 to 3 |
+| L3 | 12 | 14 to 16 | 16 | 0 | 1 to 4 |
+
+- **No buffer:** a place is in exactly one tile of a level, so a renderer that gathers the tiles in view never meets
+  the same place twice.
+- **The name written** is the node's `name` when every character of it is one a display's label font is expected to
+  hold (printable Basic Latin, Latin-1 Supplement, Latin Extended-A and -B, U+02BB, U+02BC, the curly quotes and the
+  en and em dash), else its `name:en` under the same rule, else the place is left out (and counted in SOURCES.json).
+  Names are stripped, their words separated by one space, and composed (NFC).
+- A tile's features are in class order (cities first), then by OSM node id. Within the display's budget of 12,000
+  features per tile; over it the lowest classes are left out.
+- A coverage grid: 1 where the level has a place in the cell, 0 elsewhere (no places data: nothing to look up). The
+  value 2 and `full_class` are not used.
 
 ## 8. Reader rules
 

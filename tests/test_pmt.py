@@ -50,7 +50,10 @@ class Vectors(unittest.TestCase):
                     with self.subTest(name=name, level=i, tile=(x, y)):
                         entry = pf.find(i, x, y)
                         self.assertIsNotNone(entry)
-                        self.assertEqual(pf.tile(i, entry), feats)
+                        if isinstance(feats, (bytes, bytearray)):  # a tile given as bytes: it decodes
+                            pf.tile(i, entry)
+                        else:
+                            self.assertEqual(pf.tile(i, entry), feats)
                 self.assertIsNone(pf.find(i, 0, 0))
 
     def test_pages_and_shared_blobs(self):
@@ -154,6 +157,15 @@ class Rejects(unittest.TestCase):
         self.assertRejected(fix_header_crc(d))
         struct.pack_into("<H", d, 6, 1)  # and with 1.1 its polygons are refused in the tiles
         self.assertRejected(fix_header_crc(d))
+
+    def test_places_vector_skips_two_names(self):
+        """The hand-made places tile: four points decode, the two bad names come back as None, the others as bytes."""
+        pf = pmt.PmtFile(pmt.build_pmt(**make_test_vectors.places()))
+        names = [f[3][2] for f in pf.tile(1, pf.find(1, 652, 1450))]
+        self.assertEqual(names, [b"Good", None, None, b"Also good"])
+        dump = pmt.dump(pf)
+        self.assertIn(b"feature point class=3 200,300 name=-\n", dump)
+        self.assertIn('feature point class=3 20000,40000 name="Māʻili"\n'.encode(), dump)
 
     def test_point_names(self):
         """Places: a name of 1 to 127 bytes inside the tile; a name that is not strict UTF-8 or holds a control

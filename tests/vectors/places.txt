@@ -1,0 +1,28 @@
+PMTF 1.1 kind=5 levels=2 strings=6 attrs=0 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "osm-places"
+string 1 "© OpenStreetMap contributors"
+string 2 "ODbL 1.0"
+string 3 "OpenStreetMap"
+string 4 "2026-09-20"
+string 5 "test-vectors"
+level 0 tz=8 zoom=8-9 bits=12 buffer=0 flags=1 full_class=0 keys=9928-9928 entries=1 tol_dm=0
+grid 0 v0=65535 v1=1 v2=0 v3=0
+level 1 tz=12 zoom=14-16 bits=16 buffer=0 flags=0 full_class=0 keys=2541772-2541784 entries=3 tol_dm=0
+tile 0 40 90 len=18 crc=972f44cc
+feature point class=1 2000,2100 name="Port Example"
+tile 1 650 1450 len=251 crc=66dc07b7
+feature point class=1 32768,32768 name="Port Example"
+feature point class=2 10000,12000 name="Montréal-Ouest"
+feature point class=2 50000,12000 name="Mazatlán"
+feature point class=3 20000,40000 name="Māʻili"
+feature point class=3 20000,40000 name="Twin"
+feature point class=4 60000,60000 name="Looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooongest"
+feature point class=4 0,65535 name="Corner"
+feature point class=9 40000,50000 name="Unknown class"
+tile 1 651 1450 len=0 crc=00000000
+tile 1 652 1450 len=52 crc=df0d0d68
+feature point class=2 100,100 name="Good"
+feature point class=3 200,300 name=-
+feature point class=3 300,500 name=-
+feature point class=4 400,700 name="Also good"
