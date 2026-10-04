@@ -17,7 +17,8 @@ class Names(unittest.TestCase):
         self.assertEqual(ok("  Sault   Ste.\tMarie "), b"Sault Ste. Marie")       # stripped, one space between words
         self.assertEqual(ok("Montréal"), "Montréal".encode())
         self.assertEqual(ok("Montréal"), "Montréal".encode())              # composed (NFC)
-        self.assertEqual(ok("Māʻili"), "Māʻili".encode())                         # Latin Extended-A, U+02BB
+        self.assertEqual(ok("Māʻili"), "Mā‘ili".encode())      # Latin Extended-A; U+02BB written as U+2018
+        self.assertEqual(ok("Łutselkʼe"), "Łutselk’e".encode())  # U+02BC written as U+2019
         self.assertEqual(ok("Łutselk’e"), "Łutselk’e".encode())
         for bad in (None, "", "   ", "ᐃᖃᓗᐃᑦ", "Москва", "東京", "A​B", "Tab\x01", "x" * 128):
             self.assertIsNone(ok(bad), repr(bad))

@@ -289,9 +289,10 @@ The builder's levels (`tools/build_places.py`), with the roads' zooms:
 - **No buffer:** a place is in exactly one tile of a level, so a renderer that gathers the tiles in view never meets
   the same place twice.
 - **The name written** is the node's `name` when every character of it is one a display's label font is expected to
-  hold (printable Basic Latin, Latin-1 Supplement, Latin Extended-A and -B, U+02BB, U+02BC, the curly quotes and the
-  en and em dash), else its `name:en` under the same rule, else the place is left out (and counted in SOURCES.json).
-  Names are stripped, their words separated by one space, and composed (NFC).
+  hold (printable Basic Latin, Latin-1 Supplement, Latin Extended-A and -B, the curly quotes and the en and em dash),
+  else its `name:en` under the same rule, else the place is left out (and counted in SOURCES.json). Names are
+  stripped, their words separated by one space, and composed (NFC). U+02BB (the Hawaiian okina) and U+02BC are
+  written as U+2018 and U+2019, the stand-ins the display's font has.
 - A tile's features are in class order (cities first), then by OSM node id. Within the display's budget of 12,000
   features per tile; over it the lowest classes are left out.
 - A coverage grid: 1 where the level has a place in the cell, 0 elsewhere (no places data: nothing to look up). The

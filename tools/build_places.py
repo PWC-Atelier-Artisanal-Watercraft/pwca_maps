@@ -40,22 +40,28 @@ LEVELS = [
 TILE_FEATURE_BUDGET = 12_000  # as build_pack.py: under the display's 16,384 features per tile, with room
 
 
+# The Hawaiian okina (U+02BB) and the modifier apostrophe of First Nations names (U+02BC) are not in the display's
+# font (Jost): the left and right single quotes are written in their place (Branding, 2026-10-04), so those names are
+# drawn rather than left out.
+STAND_INS = str.maketrans({"\u02bb": "\u2018", "\u02bc": "\u2019"})
+
+
 def display_char(ch):
     """Whether a display's label font is expected to hold this character: printable Basic Latin, Latin-1 Supplement,
-    Latin Extended-A and -B, the modifier apostrophes of Hawaiian and of First Nations names, and the curly quotes
-    and dashes. (The display checks every character against its real font again and skips a label it cannot draw.)"""
+    Latin Extended-A and -B, the curly quotes and the en and em dash. (The display checks every character against its
+    real font again and skips a label it cannot draw.)"""
     c = ord(ch)
     if 0x20 <= c <= 0x7E or 0xA0 <= c <= 0x24F:
         return unicodedata.category(ch) != "Cc"
-    return c in (0x2BB, 0x2BC, 0x2018, 0x2019, 0x2013, 0x2014)
+    return c in (0x2018, 0x2019, 0x2013, 0x2014)
 
 
 def label_name(text):
-    """The bytes of a name as a label, or None: stripped, one space between words, composed (NFC), every character a
-    display character, 1 to pmt.NAME_MAX bytes."""
+    """The bytes of a name as a label, or None: stripped, one space between words, composed (NFC), the stand-ins
+    written, every character a display character, 1 to pmt.NAME_MAX bytes."""
     if not text:
         return None
-    text = unicodedata.normalize("NFC", " ".join(text.split()))
+    text = unicodedata.normalize("NFC", " ".join(text.split())).translate(STAND_INS)
     if not text or not all(display_char(ch) for ch in text):
         return None
     raw = text.encode("utf-8")
