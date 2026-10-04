@@ -1,0 +1,35 @@
+PMTF 1.1 kind=4 levels=2 strings=6 attrs=0 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "osm-roads"
+string 1 "© OpenStreetMap contributors"
+string 2 "ODbL 1.0"
+string 3 "OpenStreetMap"
+string 4 "2026-09-20"
+string 5 "test-vectors"
+level 0 tz=8 zoom=8-9 bits=12 buffer=64 flags=1 full_class=0 keys=9928-9928 entries=1 tol_dm=1500
+grid 0 v0=65534 v1=2 v2=0 v3=0
+level 1 tz=12 zoom=14-16 bits=16 buffer=512 flags=0 full_class=0 keys=2541772-2541773 entries=2 tol_dm=40
+tile 0 40 90 len=38 crc=5740db4b
+feature line class=1 attr=- parts=1
+part 3 -64,2000 1500,2100 4160,1800
+feature line class=2 attr=- parts=2
+part 2 1000,-64 1100,4160
+part 3 3000,500 3500,900 3600,1500
+tile 1 650 1450 len=124 crc=d69eef67
+feature line class=6 attr=- parts=3
+part 2 -512,8192 66048,8192
+part 2 -512,16384 66048,16384
+part 2 -512,24576 66048,24576
+feature line class=5 attr=- parts=1
+part 2 20000,-512 20000,66048
+feature line class=4 attr=- parts=1
+part 2 30000,-512 30000,66048
+feature line class=3 attr=- parts=1
+part 2 0,0 65536,65536
+feature line class=2 attr=- parts=1
+part 2 -512,40000 66048,40000
+feature line class=1 attr=- parts=1
+part 4 -512,50000 32768,50000 50000,20000 66048,20000
+feature line class=7 attr=- parts=1
+part 2 -512,60000 66048,60000
+tile 1 651 1450 len=0 crc=00000000

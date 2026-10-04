@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import make_test_vectors  # noqa: E402
 import pmt  # noqa: E402
-from pmt import LINE, POLYGON, PmtError  # noqa: E402
+from pmt import LINE, POINT, POLYGON, PmtError  # noqa: E402
 
 VECTORS = ROOT / "tests" / "vectors"
 
@@ -32,6 +32,14 @@ class Vectors(unittest.TestCase):
                 self.assertEqual(data, (VECTORS / f"{name}.pmt").read_bytes())
                 self.assertEqual(pmt.dump(pmt.PmtFile(data)), (VECTORS / f"{name}.txt").read_bytes())
         self.assertEqual(make_test_vectors.seam_rings_text(), (VECTORS / "water_seam_rings.txt").read_bytes())
+        self.assertEqual(make_test_vectors.road_seam_lines_text(), (VECTORS / "roads_seam_lines.txt").read_bytes())
+
+    def test_minor_version_by_kind(self):
+        """A base, water or zones file is written as 1.0 (unchanged bytes); roads and places as 1.1."""
+        for name, make in make_test_vectors.VECTORS.items():
+            spec = make()
+            minor = struct.unpack_from("<H", pmt.build_pmt(**spec), 6)[0]
+            self.assertEqual(minor, 1 if spec["layer_kind"] in (pmt.KIND_ROADS, pmt.KIND_PLACES) else 0, name)
 
     def test_round_trip_and_lookup(self):
         for name, make in make_test_vectors.VECTORS.items():
@@ -121,6 +129,62 @@ class Rejects(unittest.TestCase):
         pmt.put_varint(far, 0)
         one(bytes(far))                                    # point beyond the buffer
         one(bytes([(2 << 3) | 2, 1, 2, 0, 0, 2, 0, 0x80])) # trailing partial varint
+
+    def test_kind_and_geometry(self):
+        """FORMAT 1.1: roads hold lines only, places points only, the 1.0 kinds no point; a roads or places file that
+        says 1.0 is refused; a kind the reader does not know is not decoded."""
+        line = bytes([(2 << 3) | 2, 1, 2, 0, 0, 2, 0])
+        polygon = bytes([(2 << 3) | 1, 1, 3, 0, 0, 2, 0, 0, 2])
+        point = bytes([(1 << 3) | 3, 20, 20, 2]) + b"Ab"
+        self.assertEqual(pmt.decode_tile(line, 12, 32, 0, pmt.KIND_ROADS), [(LINE, 2, None, [[(0, 0), (1, 0)]])])
+        self.assertEqual(pmt.decode_tile(point, 12, 32, 0, pmt.KIND_PLACES), [(POINT, 1, None, (10, 10, b"Ab"))])
+        for blob, kind in ((polygon, pmt.KIND_ROADS), (point, pmt.KIND_ROADS), (point, pmt.KIND_WATER),
+                           (point, pmt.KIND_ZONES), (point, pmt.KIND_BASE), (line, pmt.KIND_PLACES),
+                           (polygon, pmt.KIND_PLACES), (line, 0), (line, 6), (line, 255)):
+            with self.subTest(kind=kind, blob=blob), self.assertRaises(PmtError):
+                pmt.decode_tile(blob, 12, 32, 0, kind)
+        d = bytearray(pmt.build_pmt(**make_test_vectors.roads()))
+        struct.pack_into("<H", d, 6, 0)  # a roads file that says 1.0
+        self.assertRejected(fix_header_crc(d))
+        d = bytearray(self.good)
+        struct.pack_into("<H", d, 6, 1)  # a water file that says 1.1: any minor of the major is accepted
+        pmt.PmtFile(fix_header_crc(d))
+        d = bytearray(self.good)
+        d[20] = pmt.KIND_ROADS  # a water file relabelled roads: the minor (0) refuses it at open
+        self.assertRejected(fix_header_crc(d))
+        struct.pack_into("<H", d, 6, 1)  # and with 1.1 its polygons are refused in the tiles
+        self.assertRejected(fix_header_crc(d))
+
+    def test_point_names(self):
+        """Places: a name of 1 to 127 bytes inside the tile; a name that is not strict UTF-8 or holds a control
+        character comes back as None (the label is skipped, the tile is kept)."""
+        def point(name, cls=1):
+            return bytes([(cls << 3) | 3, 20, 20, len(name)]) + name
+
+        ok = lambda blob: pmt.decode_tile(blob, 12, 32, 0, pmt.KIND_PLACES)
+        self.assertEqual(ok(point("Montréal".encode()))[0][3], (10, 10, "Montréal".encode()))
+        self.assertEqual(ok(point(b"x" * 127))[0][3][2], b"x" * 127)
+        two = ok(point(b"A") + point(b"B", 4))
+        self.assertEqual([(f[1], f[3]) for f in two], [(1, (10, 10, b"A")), (4, (20, 20, b"B"))])
+        for bad in (b"\xc3", b"\xc0\xaf", b"\xed\xa0\x80", b"\xf4\x90\x80\x80", b"\xff", b"a\x00b", b"a\x1fb",
+                    b"a\x7fb", "a\u0085b".encode(), b"\x80"):
+            self.assertIsNone(ok(point(bad))[0][3][2], bad)
+            with self.assertRaises(PmtError):
+                pmt.encode_tile([(POINT, 1, None, (10, 10, bad))], 12, 32, pmt.KIND_PLACES)
+        for blob in (bytes([(1 << 3) | 3, 20, 20, 0]),                 # a name of length 0
+                     bytes([(1 << 3) | 3, 20, 20, 128]) + b"x" * 128,  # over the limit
+                     bytes([(1 << 3) | 3, 20, 20, 5]) + b"abcd",       # past the tile's end
+                     bytes([(1 << 3) | 3, 20, 20]),                    # no name at all
+                     bytes([(1 << 3) | 7, 0, 20, 20, 1]) + b"a",       # a point with an attribute
+                     bytes([(1 << 3) | 3, 0xC2, 0x40, 0, 1]) + b"a"):  # beyond the buffer
+            with self.subTest(blob=blob), self.assertRaises(PmtError):
+                ok(blob)
+        with self.assertRaises(PmtError):
+            pmt.encode_tile([(POINT, 1, None, (10, 10, b""))], 12, 32, pmt.KIND_PLACES)
+        with self.assertRaises(PmtError):
+            pmt.encode_tile([(POINT, 1, None, (10, 10, b"x" * 128))], 12, 32, pmt.KIND_PLACES)
+        with self.assertRaises(PmtError):
+            pmt.encode_tile([(POINT, 1, None, (10, 10, b"a"))], 12, 32, pmt.KIND_ROADS)
 
     def test_encoder_refuses_what_readers_reject(self):
         with self.assertRaises(PmtError):

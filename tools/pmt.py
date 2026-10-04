@@ -1,4 +1,4 @@
-"""Map tile files (PMT) version 1.0: the reference encoder, decoder and canonical dump. The format is FORMAT.md.
+"""Map tile files (PMT) version 1.1: the reference encoder, decoder and canonical dump. The format is FORMAT.md.
 
 Usage:
   python tools/pmt.py dump FILE      print the canonical dump (FORMAT.md section 9)
@@ -13,7 +13,8 @@ import sys
 import zlib
 
 MAGIC = b"PMTF"
-VERSION = (1, 0)
+VERSION_MAJOR = 1
+VERSION_MINOR = 1  # the newest minor this tool writes and reads; a base, water or zones file is still written as 1.0
 FIXED_HEADER = 64
 LEVEL_RECORD = 48
 INDEX_ENTRY = 16
@@ -32,9 +33,13 @@ NO_STRING = 0xFFFF
 GRID_SIDE = 256
 GRID_BYTES = GRID_SIDE * GRID_SIDE // 4
 
-POLYGON, LINE = 1, 2
+POLYGON, LINE, POINT = 1, 2, 3
 KIND_BASE, KIND_WATER, KIND_ZONES = 1, 2, 3
-KIND_ROADS = 4  # PROPOSAL for FORMAT 1.1 (lines; classes in build_pack.ROAD_CLASSES); no display reads it yet
+KIND_ROADS, KIND_PLACES = 4, 5  # FORMAT 1.1 (sections 7.4 and 7.5)
+# The geometries a layer kind may hold (FORMAT.md section 6). A kind that is not here is not decoded at all.
+KIND_GEOMETRIES = {KIND_BASE: (POLYGON, LINE), KIND_WATER: (POLYGON, LINE), KIND_ZONES: (POLYGON, LINE),
+                   KIND_ROADS: (LINE,), KIND_PLACES: (POINT,)}
+NAME_MAX = 127  # bytes of a point's name
 LEVEL_FLAG_GRID = 1
 ID_FIELDS = ("layer", "credit", "license", "source", "source_date", "build")
 
@@ -44,6 +49,23 @@ TAG_NAME, TAG_SPEED_DKMH, TAG_MONTHS, TAG_DAYS, TAG_FLAGS, TAG_SOURCE_REF = 1, 2
 
 class PmtError(ValueError):
     """The input breaks a rule of FORMAT.md."""
+
+
+def kind_minor(layer_kind):
+    """The minor version a file of this layer kind states: 1 for the kinds 1.1 added, else 0."""
+    return 1 if layer_kind in (KIND_ROADS, KIND_PLACES) else 0
+
+
+def name_ok(raw):
+    """Whether a point's name may be drawn: 1 to NAME_MAX bytes of strict UTF-8 with no control character (C0, DEL
+    or C1)."""
+    if not 1 <= len(raw) <= NAME_MAX:
+        return False
+    try:
+        text = bytes(raw).decode("utf-8", "strict")
+    except UnicodeDecodeError:
+        return False
+    return not any(ord(c) < 0x20 or 0x7F <= ord(c) <= 0x9F for c in text)
 
 
 def crc32(data):
@@ -105,16 +127,35 @@ def get_varint(buf, pos, end):
 
 # ---- tiles ---------------------------------------------------------------------------------------------------------
 
-def encode_tile(features, coord_bits, buffer):
-    """features: a list of (geometry, class, attr or None, parts); parts: a list of lists of (x, y) tile units."""
+def encode_tile(features, coord_bits, buffer, layer_kind=KIND_WATER):
+    """features: a list of (geometry, class, attr or None, parts); parts: a list of lists of (x, y) tile units. A
+    point (layer kind 5 only) is (POINT, class, None, (x, y, name)) with the name as str or bytes."""
     if len(features) > MAX_FEATURES:
         raise PmtError("too many features")
+    allowed = KIND_GEOMETRIES.get(layer_kind, ())
     lo, hi = -buffer, (1 << coord_bits) + buffer
     out = bytearray()
     px = py = points = 0
     for geom, cls, attr, parts in features:
-        if geom not in (POLYGON, LINE) or not 0 <= cls < (1 << 29):
-            raise PmtError(f"bad feature geometry {geom} or class {cls}")
+        if geom not in allowed or not 0 <= cls < (1 << 29):
+            raise PmtError(f"bad feature geometry {geom} or class {cls} for layer kind {layer_kind}")
+        if geom == POINT:
+            x, y, name = parts
+            name = name.encode("utf-8") if isinstance(name, str) else bytes(name)
+            if attr is not None or not name_ok(name):
+                raise PmtError(f"bad point feature (an attribute, or the name {name!r})")
+            if not (lo <= x <= hi and lo <= y <= hi):
+                raise PmtError(f"point ({x}, {y}) outside the buffered tile")
+            points += 1
+            if points > MAX_POINTS:
+                raise PmtError("too many points in the tile")
+            put_varint(out, geom | (cls << 3))
+            put_varint(out, zigzag(x - px))
+            put_varint(out, zigzag(y - py))
+            out.append(len(name))
+            out += name
+            px, py = x, y
+            continue
         if not 1 <= len(parts) <= MAX_PARTS:
             raise PmtError("bad part count")
         put_varint(out, geom | (4 if attr is not None else 0) | (cls << 3))
@@ -139,8 +180,13 @@ def encode_tile(features, coord_bits, buffer):
     return bytes(out)
 
 
-def decode_tile(blob, coord_bits, buffer, attr_count):
-    """The inverse of encode_tile, with every check of FORMAT.md section 6."""
+def decode_tile(blob, coord_bits, buffer, attr_count, layer_kind=KIND_WATER):
+    """The inverse of encode_tile, with every check of FORMAT.md section 6. A point comes back as (POINT, class,
+    None, (x, y, name bytes)); a point whose name fails name_ok comes back with the name None (a reader skips that
+    label and keeps the tile)."""
+    allowed = KIND_GEOMETRIES.get(layer_kind)
+    if not allowed:
+        raise PmtError(f"layer kind {layer_kind} is not one this reader decodes")
     lo, hi = -buffer, (1 << coord_bits) + buffer
     features = []
     pos, end = 0, len(blob)
@@ -150,8 +196,30 @@ def decode_tile(blob, coord_bits, buffer, attr_count):
             raise PmtError("too many features")
         head, pos = get_varint(blob, pos, end)
         geom, has_attr, cls = head & 3, (head >> 2) & 1, head >> 3
-        if geom not in (POLYGON, LINE):
-            raise PmtError(f"bad geometry type {geom}")
+        if geom not in allowed:
+            raise PmtError(f"geometry type {geom} in layer kind {layer_kind}")
+        if geom == POINT:
+            if has_attr:
+                raise PmtError("a point with an attribute")
+            points += 1
+            if points > MAX_POINTS:
+                raise PmtError("too many points in the tile")
+            u, pos = get_varint(blob, pos, end)
+            v, pos = get_varint(blob, pos, end)
+            px += unzigzag(u)
+            py += unzigzag(v)
+            if not (lo <= px <= hi and lo <= py <= hi):
+                raise PmtError(f"point ({px}, {py}) outside the buffered tile")
+            if pos >= end:
+                raise PmtError("a point without its name")
+            n = blob[pos]
+            pos += 1
+            if not 1 <= n <= NAME_MAX or n > end - pos:
+                raise PmtError("a name of length 0, over the limit or past the tile's end")
+            name = bytes(blob[pos:pos + n])
+            pos += n
+            features.append((POINT, cls, None, (px, py, name if name_ok(name) else None)))
+            continue
         attr = None
         if has_attr:
             attr, pos = get_varint(blob, pos, end)
@@ -268,7 +336,7 @@ def build_pmt(*, layer_kind, levels, strings, ids, attrs=(), build_time=0, data_
             for _, _, attr, _ in feats:
                 if attr is not None and attr >= len(attrs):
                     raise PmtError("attribute index out of range")
-            tiles.append((morton(x, y), encode_tile(feats, bits, buf)))
+            tiles.append((morton(x, y), encode_tile(feats, bits, buf, layer_kind)))
         tiles.sort()
         encoded.append(tiles)
 
@@ -335,8 +403,8 @@ def build_pmt(*, layer_kind, levels, strings, ids, attrs=(), build_time=0, data_
         return v
 
     head = bytearray(struct.pack(
-        "<4sHHIIIBBHIIHHHHHHHHIIII", MAGIC, VERSION[0], VERSION[1], header_size, 0, file_size, layer_kind,
-        len(levels), 0, build_time, data_time, len(strings), *(sid(n) for n in ID_FIELDS), 0, str_off,
+        "<4sHHIIIBBHIIHHHHHHHHIIII", MAGIC, VERSION_MAJOR, kind_minor(layer_kind), header_size, 0, file_size,
+        layer_kind, len(levels), 0, build_time, data_time, len(strings), *(sid(n) for n in ID_FIELDS), 0, str_off,
         len(attrs), attr_off, 0))
     assert len(head) == FIXED_HEADER
     for i, (lv, tiles) in enumerate(zip(levels, encoded)):
@@ -378,8 +446,10 @@ class PmtFile:
         (magic, self.major, self.minor, hsize, hcrc, fsize, self.kind, nlev, flags, self.build_time,
          self.data_time, nstr, *rest) = struct.unpack_from("<4sHHIIIBBHIIHHHHHHHHIIII", data, 0)
         ids, (_res, str_off, self.attr_count, attr_off, _res2) = rest[:6], rest[6:]
-        if magic != MAGIC or self.major != VERSION[0]:
+        if magic != MAGIC or self.major != VERSION_MAJOR:
             raise PmtError("not a PMT version 1 file")
+        if self.minor < kind_minor(self.kind):
+            raise PmtError(f"layer kind {self.kind} in a version 1.{self.minor} file (it needs 1.1)")
         if hsize % ALIGN or not FIXED_HEADER <= hsize <= MAX_HEADER or hsize > len(data):
             raise PmtError("bad header size")
         head = bytearray(data[:hsize])
@@ -508,7 +578,7 @@ class PmtFile:
 
     def tile(self, level, entry):
         lv = self.levels[level]
-        return decode_tile(self.tile_blob(level, entry), lv.coord_bits, lv.buffer, self.attr_count)
+        return decode_tile(self.tile_blob(level, entry), lv.coord_bits, lv.buffer, self.attr_count, self.kind)
 
 
 def open_pmt(path):
@@ -562,6 +632,11 @@ def dump(pf):
             x, y = unmorton(key)
             w(f"tile {i} {x} {y} len={length} crc={crc:08x}")
             for geom, cls, attr, parts in pf.tile(i, entry):
+                if geom == POINT:
+                    px, py, name = parts
+                    lines.append(f"feature point class={cls} {px},{py} name=".encode("ascii")
+                                 + (quote(name) if name is not None else b"-"))
+                    continue
                 w(f"feature {'polygon' if geom == POLYGON else 'line'} class={cls} "
                   f"attr={'-' if attr is None else attr} parts={len(parts)}")
                 for part in parts:

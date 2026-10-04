@@ -1,4 +1,4 @@
-# Map tile file format (PMT), version 1.0
+# Map tile file format (PMT), version 1.1
 
 This is the on-card and in-flash format of the offline map packs. It is published with the build tools as part of the
 build recipe (ODbL section 4.6). The files are plain, documented and unencrypted (ODbL section 4.7). The
@@ -8,11 +8,16 @@ anything.
 `tools/pmt.py` is the reference encoder and decoder. The test vectors in `tests/vectors/` pin the format: any reader
 must produce the same canonical dump (section 9) for each vector.
 
+Version 1.1 (2026-10-04) adds two layer kinds and nothing else: roads (kind 4, section 7.4) and places (kind 5, section
+7.5, with a new geometry: a point with a name). A base, water or zones file is unchanged and is still written as 1.0,
+byte for byte. A 1.0 reader draws a 1.1 pack's water and never draws the kinds it does not know.
+
 ## 1. Overview
 
 - A pack is a directory of `.pmt` files plus `ATTRIBUTION.txt`, `LICENSE.txt`, `SOURCES.json` and
   `MANIFEST.sha256` (see `README.md`).
-- Each `.pmt` file is self-describing: one **layer** (base, water or zones), one or more **levels**, and for each
+- Each `.pmt` file is self-describing: one **layer** (base, water, zones, roads or places), one or more **levels**,
+  and for each
   level a sorted tile index and the tile data.
 - Tiles are Web Mercator tiles (x to the east, y to the south; zoom z has 2^z by 2^z tiles). A level is cut at one
   tile zoom and serves a range of display zooms.
@@ -43,13 +48,13 @@ the recommended order; readers must use the offsets and not assume an order.
 |---|---|---|---|
 | 0 | u8[4] | `magic` | `PMTF` (0x50 0x4D 0x54 0x46) |
 | 4 | u16 | `version_major` | 1. A reader rejects any other major version |
-| 6 | u16 | `version_minor` | 0. Minor versions only add optional content; a reader accepts any minor of its major |
+| 6 | u16 | `version_minor` | 0 or 1. Minor versions only add optional content; a reader accepts any minor of its major. A file of layer kind 4 or 5 states 1 or higher; a reader refuses kind 4 or 5 in a file that states 0 |
 | 8 | u32 | `header_size` | Bytes in the header block, a multiple of 4096, at most 16 MiB |
 | 12 | u32 | `header_crc` | CRC-32 of bytes [0, `header_size`) computed with this field as 0 |
 | 16 | u32 | `file_size` | Total file size; a shorter file is a truncated copy and is rejected |
-| 20 | u8 | `layer_kind` | 1 base, 2 water, 3 zones (section 7) |
+| 20 | u8 | `layer_kind` | 1 base, 2 water, 3 zones, 4 roads, 5 places (section 7). A reader never decodes or draws a kind it does not know |
 | 21 | u8 | `level_count` | 1 to 8 |
-| 22 | u16 | `flags` | 0 in version 1.0 |
+| 22 | u16 | `flags` | 0 in versions 1.0 and 1.1 |
 | 24 | u32 | `build_time` | UTC seconds since 1970 when the file was built |
 | 28 | u32 | `data_time` | UTC seconds since 1970 of the source snapshot (OSM replication time, dataset date) |
 | 32 | u16 | `str_count` | Number of strings in the string table |
@@ -144,7 +149,7 @@ A tile blob is a sequence of features that ends exactly at the blob's end. Point
 starts at (0, 0) at the start of the blob and carries across parts and features.
 
 ```
-feature:
+feature (polygon or line):
   varint  head            geometry = head & 3 (1 polygon, 2 line); has_attr = (head >> 2) & 1; class = head >> 3
   varint  attr            only if has_attr: attribute record index (< attr_count)
   varint  part_count      1 to 65535
@@ -153,7 +158,31 @@ feature:
     n times:
       varint  zigzag(dx)  x = previous x + dx
       varint  zigzag(dy)  y = previous y + dy
+
+feature (point; version 1.1, layer kind 5 only):
+  varint  head            geometry = head & 3 = 3; has_attr = 0; class = head >> 3
+  varint  zigzag(dx)      x = previous x + dx
+  varint  zigzag(dy)      y = previous y + dy
+  u8      name_len        1 to 127
+  u8[name_len]            the name: UTF-8, not 0-terminated
 ```
+
+- **Geometry by layer kind.** The layer kind of the file fixes which geometries its tiles may hold, and a reader
+  fixes that pairing from the header before it decodes any tile of the file:
+
+  | Layer kind | Geometries |
+  |---|---|
+  | 1 base, 2 water, 3 zones | polygon, line |
+  | 4 roads | line only |
+  | 5 places | point only |
+
+  A feature of any other geometry makes the tile bad (it is skipped whole). Geometry 0 is never valid. A reader
+  does not decode a tile of a kind that is not in this table.
+- **Point names.** A name is 1 to 127 bytes and lies wholly inside the blob; a length of 0, over 127 or past the
+  blob's end makes the tile bad. The bytes are strict UTF-8 (shortest form, no surrogates, at most U+10FFFF) with
+  no control character (none of U+0000 to U+001F, U+007F, U+0080 to U+009F). A reader **skips a point whose name
+  breaks that rule and keeps the rest of the tile**; the builder never writes such a name. A reader copies a name
+  out of the tile buffer before it uses it, and never treats it as a format string or as markup.
 
 - **varint**: unsigned LEB128, at most 5 bytes, value below 2^32.
 - **zigzag**: 32-bit, `(v << 1) ^ (v >> 31)`; decode `(u >> 1) ^ -(u & 1)`.
@@ -168,8 +197,10 @@ feature:
   on that grown square, outside the tile, so a renderer that strokes outlines never shows them inside the tile.
   Neighbouring tiles overlap by the buffer; with the non-zero rule, filling the polygons of many tiles together gives
   the right union.
-- **Limits** (readers enforce them): 65535 features per tile, 65535 parts per feature, 1,048,576 points per tile.
-- **Draw order**: renderers draw polygon features in ascending class, then line features in ascending class.
+- **Limits** (readers enforce them): 65535 features per tile, 65535 parts per feature, 1,048,576 points per tile
+  (a point feature counts as one point).
+- **Draw order**: renderers draw polygon features in ascending class, then line features in ascending class. Roads
+  are the exception (section 7.4): the largest road is drawn last.
 
 ## 7. Layers and classes
 
@@ -201,9 +232,53 @@ Attribute tags:
 Zone data is advisory. Where a zones file has no zone, the map says so ("no no-wake data here"); it never means that
 no rules apply.
 
+### 7.4 Roads (`layer_kind` 4, version 1.1): drivable roads (OpenStreetMap)
+
+Lines only, drawn over land and water. No attribute records, no names. Classes, from the OSM `highway` tag (a link
+takes its road's class):
+
+| Class | OSM `highway` |
+|---|---|
+| 1 | motorway, motorway_link |
+| 2 | trunk, trunk_link |
+| 3 | primary, primary_link |
+| 4 | secondary, secondary_link |
+| 5 | tertiary, tertiary_link |
+| 6 | unclassified, residential, living_street |
+
+Left out: service roads, tracks, paths, footways, cycleways, roads under construction or proposed, and `area=yes`.
+A renderer draws class 6 first and class 1 last, so a larger road covers a smaller one where they meet, and does not
+draw a class it does not know.
+
+The builder's levels (`tools/build_pack.py --layer roads`):
+
+| Level | Tile zoom | Serves | Bits | Buffer | Tolerance | Classes |
+|---|---|---|---|---|---|---|
+| L0 | 8 | 8 to 9 | 12 | 64 | 150 m | 1, 2 |
+| L1 | 10 | 10 to 11 | 12 | 64 | 40 m | 1 to 3 |
+| L2 | 12 | 12 to 13 | 12 | 64 | 10 m | 1 to 5 |
+| L3 | 12 | 14 to 16 | 16 | 512 | 4 m | 1 to 6 |
+
+- Each class's ways are joined end to end where exactly two meet, before cutting.
+- A coverage grid as for water: 0 means the file has no roads data there, 1 means covered (an absent tile has no
+  roads). The value 2 and `full_class` are not used: an absent roads tile never draws anything.
+- The buffer matters to a renderer that draws each tile inside its own square: a road whose centre line runs just
+  outside the square is in the tile as long as it is within the buffer, so its stroke is drawn up to the square's
+  edge. A stroke's half width, in tile units at the display zoom, must not be more than the buffer.
+- Every tile is within the display's budget (12,000 features or parts, 100,000 points); a tile over it leaves out its
+  shortest lines first.
+
+### 7.5 Places (`layer_kind` 5, version 1.1): named places (OpenStreetMap)
+
+Points only (section 6), one per place, each with its name. No attribute records. Classes, from the OSM `place` tag of
+a node that has a `name`: 1 city, 2 town, 3 village, 4 hamlet. The builder's levels follow the roads' (L0 cities; L1
+and towns; L2 and villages; L3 and hamlets). A renderer draws a label for a point or leaves it out (by class, by the
+room on the screen); it never draws a class it does not know.
+
 ## 8. Reader rules
 
-On open a reader checks: the magic and major version; `header_size` (a multiple of 4096, at most 16 MiB, not larger
+On open a reader checks: the magic and major version; that a file of layer kind 4 or 5 states minor version 1 or
+higher; `header_size` (a multiple of 4096, at most 16 MiB, not larger
 than the file); the header CRC; `file_size` against the real size; `level_count`; for each level the field ranges in
 section 4, that the page table, grid and index lie inside their regions, that the page table is strictly ascending
 and matches ceil(`entry_count` / 256); the string table (bounds, ascending offsets, a 0 byte ending each string); the
@@ -212,7 +287,12 @@ attribute table (bounds, ascending offsets); and that every string id in the fix
 
 On each tile it checks that the entry's blob lies inside its level's data region, that its length is at most 8 MiB
 and that the CRC matches; then while decoding, every varint, count, class, attribute index and coordinate against
-section 6. A bad tile is skipped and reported; it never stops the map.
+section 6, and every feature's geometry against the file's layer kind. A bad tile is skipped and reported; it never
+stops the map.
+
+A reader that opens files from a card also bounds what it loads: a fixed number of files, and a ceiling on one header
+block and on all opened header blocks together, checked before each allocation. A file over a bound is skipped and
+reported, and the rest of the pack loads.
 
 Packs are unencrypted and unsigned by design. Anyone may edit or rebuild them, so a reader treats every byte as
 untrusted input.
@@ -232,7 +312,10 @@ grid <i> v0=<cells> v1=<cells> v2=<cells> v3=<cells>
 tile <level> <x> <y> len=<> crc=<8 lowercase hex digits>
 feature <polygon|line> class=<c> attr=<index or -> parts=<n>
 part <n> <x>,<y> <x>,<y> ...
+feature point class=<c> <x>,<y> name=<"<text>" or ->
 ```
+
+A point's name prints as `-` when the reader skips it (section 6, point names).
 
 In `<text>`, `\` prints as `\\`, `"` as `\"`, and bytes below 0x20 as `\xHH` (two uppercase hex digits); all other
 bytes are printed as they are. A `grid` line follows its `level` line only when the level has a grid. Tiles are listed per level in key

@@ -146,6 +146,73 @@ def water_seam():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+ROAD_STRINGS = ["osm-roads", "© OpenStreetMap contributors", "ODbL 1.0", "OpenStreetMap", "2026-09-20",
+                "test-vectors"]
+
+
+def roads():
+    """A roads file (layer kind 4, version 1.1): a zoomed-out level with a coverage grid and two classes, and a detail
+    level with all six classes crossing each other, so a renderer's class order shows (a larger road over a smaller
+    one), with lines running into the buffer and a class no renderer knows (7: never drawn)."""
+    l0 = {"tile_zoom": 8, "zoom_min": 8, "zoom_max": 9, "coord_bits": 12, "buffer": 64, "tolerance_dm": 1500,
+          "grid": {(40, 90): 1, (41, 90): 1},
+          "tiles": {(40, 90): [(LINE, 1, None, [[(-64, 2000), (1500, 2100), (4160, 1800)]]),
+                               (LINE, 2, None, [[(1000, -64), (1100, 4160)], [(3000, 500), (3500, 900), (3600, 1500)]])]}}
+    lo, hi = -512, 66048
+    detail = [(LINE, 6, None, [[(lo, y), (hi, y)] for y in (8192, 16384, 24576)]),
+              (LINE, 5, None, [[(20000, lo), (20000, hi)]]),
+              (LINE, 4, None, [[(30000, lo), (30000, hi)]]),
+              (LINE, 3, None, [[(0, 0), (65536, 65536)]]),
+              (LINE, 2, None, [[(lo, 40000), (hi, 40000)]]),
+              (LINE, 1, None, [[(lo, 50000), (32768, 50000), (50000, 20000), (hi, 20000)]]),
+              (LINE, 7, None, [[(lo, 60000), (hi, 60000)]])]
+    l1 = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 512, "tolerance_dm": 40,
+          "tiles": {(650, 1450): detail, (651, 1450): []}}
+    return dict(layer_kind=pmt.KIND_ROADS, levels=[l0, l1], strings=ROAD_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+ROAD_SEAM_TILE = (1000, 1500)  # top-left tile of the 2 x 2 block the seam roads cross
+
+
+def road_seam_lines():
+    """Roads over a 2 x 2 tile block, in level world units (tz 12, 12 bits): [(class, x array, y array)], one of each
+    class 1 to 5, crossing the block's inner tile borders at several angles, one of them along a border."""
+    import numpy as np
+    side = 1 << 12
+    ox, oy = ROAD_SEAM_TILE[0] * side, ROAD_SEAM_TILE[1] * side
+    rel = [(5, [(300, 500), (2500, 700), (5000, 400), (7800, 900)]),
+           (4, [(600, 7900), (900, 5000), (700, 3000), (1100, 200)]),
+           (3, [(200, 200), (4096, 4096), (7900, 7700)]),
+           (2, [(4100, 300), (4090, 3000), (4110, 6000), (4080, 7900)]),  # along the block's vertical border
+           (1, [(100, 6000), (2000, 4300), (4096, 4096), (6000, 3900), (8000, 2000)])]
+    return [(c, np.array([ox + x for x, _ in pts], np.int64), np.array([oy + y for _, y in pts], np.int64))
+            for c, pts in rel]
+
+
+def roads_seam():
+    """Roads cut into 2 x 2 buffered tiles: renderers must draw them as if they were never cut."""
+    import packgeom as pg
+    tiles = {}
+    for cls, x, y in road_seam_lines():
+        for key, parts in pg.cut_line([(x, y)], 12, 12, 64).items():
+            tiles.setdefault(key, []).append((LINE, cls, None, [list(zip(px.tolist(), py.tolist())) for px, py in parts]))
+    level = {"tile_zoom": 12, "zoom_min": 12, "zoom_max": 14, "coord_bits": 12, "buffer": 64, "tolerance_dm": 100,
+             "tiles": tiles}
+    return dict(layer_kind=pmt.KIND_ROADS, levels=[level], strings=ROAD_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+def road_seam_lines_text():
+    """The uncut seam roads: 'line <class> <n>' then n lines 'x y', coordinates relative to ROAD_SEAM_TILE's corner."""
+    side = 1 << 12
+    lines = []
+    for cls, x, y in road_seam_lines():
+        lines.append(f"line {cls} {x.size}")
+        lines += [f"{a - ROAD_SEAM_TILE[0] * side} {b - ROAD_SEAM_TILE[1] * side}" for a, b in zip(x.tolist(), y.tolist())]
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
 def seam_rings_text():
     """The uncut seam polygon: 'ring <n>' then n lines 'x y', coordinates relative to SEAM_TILE's corner."""
     side = 1 << 12
@@ -157,7 +224,7 @@ def seam_rings_text():
 
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
-           "base_minimal": base_minimal, "zones_shapes": zones_shapes}
+           "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam}
 
 
 def main(argv):
@@ -169,6 +236,7 @@ def main(argv):
         (out / f"{name}.txt").write_bytes(pmt.dump(pmt.PmtFile(data)))
         print(f"{name}: {len(data)} bytes")
     (out / "water_seam_rings.txt").write_bytes(seam_rings_text())
+    (out / "roads_seam_lines.txt").write_bytes(road_seam_lines_text())
     return 0
 
 

@@ -55,13 +55,14 @@ LEVELS = [
     (12, 12, 13, 12, 32, 10.0, 0.0, None),
     (12, 14, 16, 16, 512, 4.0, 0.0, None),
 ]
-# The roads layer (--layer roads; layer_kind 4, a PROPOSAL for FORMAT 1.1, not yet read by any display): lines only,
-# the larger roads from the zoomed-out levels, every drivable road from zoom 14 (the owner, 2026-10-02: "I want the
-# entire US map").
+# The roads layer (--layer roads; layer_kind 4, FORMAT.md 1.1 section 7.4): lines only, the larger roads from the
+# zoomed-out levels, every drivable road from zoom 14 (the owner, 2026-10-02: "I want the entire US map"). The buffer
+# of the 12-bit levels is 64 units (4 px where the tile zoom is the display zoom): a display draws each tile inside its
+# own square, so a road just outside the square must be in the tile for half its stroke width (up to 2.5 px there).
 ROAD_LEVELS = [
-    (8, 8, 9, 12, 32, 150.0, 0.0, {1, 2}),
-    (10, 10, 11, 12, 32, 40.0, 0.0, {1, 2, 3}),
-    (12, 12, 13, 12, 32, 10.0, 0.0, {1, 2, 3, 4, 5}),
+    (8, 8, 9, 12, 64, 150.0, 0.0, {1, 2}),
+    (10, 10, 11, 12, 64, 40.0, 0.0, {1, 2, 3}),
+    (12, 12, 13, 12, 64, 10.0, 0.0, {1, 2, 3, 4, 5}),
     (12, 14, 16, 16, 512, 4.0, 0.0, {1, 2, 3, 4, 5, 6}),
 ]
 MIN_AREA_M2 = 10_000.0
@@ -119,8 +120,8 @@ def way_kind(tags):
     return None if a is None and line is None else (a, line)
 
 
-# Road classes (the roads layer, PROPOSAL): a link takes its road's class. Service roads, tracks, paths, footways and
-# roads under construction or proposed are left out.
+# Road classes (the roads layer, FORMAT.md section 7.4): a link takes its road's class. Service roads, tracks, paths,
+# footways and roads under construction or proposed are left out.
 ROAD_CLASSES = {"motorway": 1, "motorway_link": 1, "trunk": 2, "trunk_link": 2, "primary": 3, "primary_link": 3,
                 "secondary": 4, "secondary_link": 4, "tertiary": 5, "tertiary_link": 5, "unclassified": 6,
                 "residential": 6, "living_street": 6}
@@ -533,7 +534,7 @@ def region_job(job):
             if dropped:
                 print(f"tile z{tz} {key[0]},{key[1]}: {dropped} shortest lines left out (over the display's "
                       f"{TILE_FEATURE_BUDGET} features or parts)", flush=True)
-            enc[key] = pmt.encode_tile(feats, bits, buf)
+            enc[key] = pmt.encode_tile(feats, bits, buf, pmt.KIND_ROADS if layer == "roads" else pmt.KIND_WATER)
         out.append((grid, enc))
     return region, out, len(polys) + len(lines)
 
@@ -574,7 +575,7 @@ def main(argv):
     ap.add_argument("--reuse-store", action="store_true",
                     help="skip the passes over the extract: cut from a complete store kept by an earlier run")
     ap.add_argument("--layer", choices=("water", "roads"), default="water",
-                    help="water (layer_kind 2), or roads (layer_kind 4: a FORMAT 1.1 PROPOSAL no display reads yet)")
+                    help="water (layer_kind 2, written as PMT 1.0), or roads (layer_kind 4, written as PMT 1.1)")
     a = ap.parse_args(argv[1:])
     if not 0 <= a.region_zoom <= 8:
         ap.error("--region-zoom must be 0-8 (regions hold whole zoom-8 coverage cells)")
@@ -619,7 +620,8 @@ def main(argv):
         levels = []
         for (grid, tiles), (tz, zmin, zmax, bits, buf, tol, _min_m2, _cls) in zip(acc, lv_table):
             levels.append({"tile_zoom": tz, "zoom_min": zmin, "zoom_max": zmax, "coord_bits": bits, "buffer": buf,
-                           "tolerance_dm": int(tol * 10), "full_class": 1, "grid": grid, "tiles": tiles})
+                           "tolerance_dm": int(tol * 10), "full_class": 0 if roads else 1, "grid": grid,
+                           "tiles": tiles})
         data = pmt.build_pmt(layer_kind=pmt.KIND_ROADS if roads else pmt.KIND_WATER, levels=levels, strings=strings,
                              ids=dict(zip(pmt.ID_FIELDS, range(6))), build_time=int(time.time()), data_time=stamp)
         path = out / f"{name}.part{len(files) + 1}.pmt"
@@ -671,7 +673,7 @@ def main(argv):
         sources.append({"name": "OpenStreetMap water polygons (osmdata.openstreetmap.de)", "license": "ODbL 1.0",
                         "file": Path(a.sea).name, "sha256": sha256(a.sea)})
     info = {
-        "format": "PMT 1.1 PROPOSAL: roads, layer_kind 4 (FORMAT.md)" if roads else "PMT 1.0 (FORMAT.md)",
+        "format": "PMT 1.1 (FORMAT.md): roads, layer_kind 4" if roads else "PMT 1.0 (FORMAT.md)",
         "tool": {"repository": "https://github.com/PWC-Atelier-Artisanal-Watercraft/pwca_maps", "commit": commit},
         "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "sources": sources,
