@@ -234,21 +234,21 @@ no rules apply.
 
 ### 7.4 Roads (`layer_kind` 4, version 1.1): drivable roads (OpenStreetMap)
 
-Lines only, drawn over land and water. No attribute records, no names. Classes, from the OSM `highway` tag (a link
-takes its road's class):
+Lines only, drawn over land and water. No attribute records, no names. Classes, from the OSM `highway` tag:
 
-| Class | OSM `highway` |
-|---|---|
-| 1 | motorway, motorway_link |
-| 2 | trunk, trunk_link |
-| 3 | primary, primary_link |
-| 4 | secondary, secondary_link |
-| 5 | tertiary, tertiary_link |
-| 6 | unclassified, residential, living_street |
+| Class | OSM `highway` | Link class | OSM `highway` |
+|---|---|---|---|
+| 1 | motorway | 9 | motorway_link |
+| 2 | trunk | 10 | trunk_link |
+| 3 | primary | 11 | primary_link |
+| 4 | secondary | 12 | secondary_link |
+| 5 | tertiary | 13 | tertiary_link |
+| 6 | unclassified, residential, living_street | | |
 
-Left out: service roads, tracks, paths, footways, cycleways, roads under construction or proposed, and `area=yes`.
-A renderer draws class 6 first and class 1 last, so a larger road covers a smaller one where they meet, and does not
-draw a class it does not know.
+A **link** (a ramp, a slip road) has its road's class plus 8, so a renderer can draw it thinner than its road, or
+leave it out. Left out of the data: service roads, tracks, paths, footways, cycleways, roads under construction or
+proposed, and `area=yes`. A renderer draws class 6 first and class 1 last, each class's links just before the class
+itself, so a larger road covers a smaller one where they meet; it does not draw a class it does not know.
 
 The builder's levels (`tools/build_pack.py --layer roads`):
 
@@ -257,8 +257,10 @@ The builder's levels (`tools/build_pack.py --layer roads`):
 | L0 | 8 | 8 to 9 | 12 | 64 | 150 m | 1, 2 |
 | L1 | 10 | 10 to 11 | 12 | 64 | 40 m | 1 to 3 |
 | L2 | 12 | 12 to 13 | 12 | 64 | 10 m | 1 to 5 |
-| L3 | 12 | 14 to 16 | 16 | 512 | 4 m | 1 to 6 |
+| L3 | 12 | 14 to 16 | 16 | 512 | 4 m | 1 to 6, and the links 9 to 13 |
 
+- Links are only in the level that serves zoom 14 and up: below that, two carriageways and their ramps would draw as
+  one broad band.
 - Each class's ways are joined end to end where exactly two meet, before cutting.
 - A coverage grid as for water: 0 means the file has no roads data there, 1 means covered (an absent tile has no
   roads). The value 2 and `full_class` are not used: an absent roads tile never draws anything.

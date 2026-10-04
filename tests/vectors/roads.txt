@@ -15,7 +15,7 @@ part 3 -64,2000 1500,2100 4160,1800
 feature line class=2 attr=- parts=2
 part 2 1000,-64 1100,4160
 part 3 3000,500 3500,900 3600,1500
-tile 1 650 1450 len=124 crc=d69eef67
+tile 1 650 1450 len=150 crc=c78caaeb
 feature line class=6 attr=- parts=3
 part 2 -512,8192 66048,8192
 part 2 -512,16384 66048,16384
@@ -32,4 +32,8 @@ feature line class=1 attr=- parts=1
 part 4 -512,50000 32768,50000 50000,20000 66048,20000
 feature line class=7 attr=- parts=1
 part 2 -512,60000 66048,60000
+feature line class=9 attr=- parts=1
+part 2 10000,-512 10000,50000
+feature line class=11 attr=- parts=1
+part 2 -512,30000 25000,30000
 tile 1 651 1450 len=0 crc=00000000

@@ -153,7 +153,9 @@ ROAD_STRINGS = ["osm-roads", "© OpenStreetMap contributors", "ODbL 1.0", "OpenS
 def roads():
     """A roads file (layer kind 4, version 1.1): a zoomed-out level with a coverage grid and two classes, and a detail
     level with all six classes crossing each other, so a renderer's class order shows (a larger road over a smaller
-    one), with lines running into the buffer and a class no renderer knows (7: never drawn)."""
+    one), with lines running into the buffer, a class no renderer knows (7: never drawn), and two links (a motorway
+    ramp, class 9, crossing the primary road and the residential roads; a primary link, class 11, crossing the
+    tertiary road): a link is drawn thinner than its road, above the smaller classes."""
     l0 = {"tile_zoom": 8, "zoom_min": 8, "zoom_max": 9, "coord_bits": 12, "buffer": 64, "tolerance_dm": 1500,
           "grid": {(40, 90): 1, (41, 90): 1},
           "tiles": {(40, 90): [(LINE, 1, None, [[(-64, 2000), (1500, 2100), (4160, 1800)]]),
@@ -165,7 +167,9 @@ def roads():
               (LINE, 3, None, [[(0, 0), (65536, 65536)]]),
               (LINE, 2, None, [[(lo, 40000), (hi, 40000)]]),
               (LINE, 1, None, [[(lo, 50000), (32768, 50000), (50000, 20000), (hi, 20000)]]),
-              (LINE, 7, None, [[(lo, 60000), (hi, 60000)]])]
+              (LINE, 7, None, [[(lo, 60000), (hi, 60000)]]),
+              (LINE, 9, None, [[(10000, lo), (10000, 50000)]]),
+              (LINE, 11, None, [[(lo, 30000), (25000, 30000)]])]
     l1 = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 512, "tolerance_dm": 40,
           "tiles": {(650, 1450): detail, (651, 1450): []}}
     return dict(layer_kind=pmt.KIND_ROADS, levels=[l0, l1], strings=ROAD_STRINGS, ids=IDS,

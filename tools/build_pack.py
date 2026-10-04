@@ -63,7 +63,7 @@ ROAD_LEVELS = [
     (8, 8, 9, 12, 64, 150.0, 0.0, {1, 2}),
     (10, 10, 11, 12, 64, 40.0, 0.0, {1, 2, 3}),
     (12, 12, 13, 12, 64, 10.0, 0.0, {1, 2, 3, 4, 5}),
-    (12, 14, 16, 16, 512, 4.0, 0.0, {1, 2, 3, 4, 5, 6}),
+    (12, 14, 16, 16, 512, 4.0, 0.0, {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13}),  # the only level with the links
 ]
 MIN_AREA_M2 = 10_000.0
 TILE_FEATURE_BUDGET = 12_000  # under the display's 16,384 features or parts per tile, with room (fit_tile)
@@ -120,11 +120,14 @@ def way_kind(tags):
     return None if a is None and line is None else (a, line)
 
 
-# Road classes (the roads layer, FORMAT.md section 7.4): a link takes its road's class. Service roads, tracks, paths,
-# footways and roads under construction or proposed are left out.
-ROAD_CLASSES = {"motorway": 1, "motorway_link": 1, "trunk": 2, "trunk_link": 2, "primary": 3, "primary_link": 3,
-                "secondary": 4, "secondary_link": 4, "tertiary": 5, "tertiary_link": 5, "unclassified": 6,
-                "residential": 6, "living_street": 6}
+# Road classes (the roads layer, FORMAT.md section 7.4). A link (a ramp, a slip road) has its road's class plus
+# ROAD_LINK, so a display can draw it thinner than its road or not at all; links are only in the level that serves
+# zoom 14 and up (Branding, 2026-10-04: at zooms 12 and 13 two carriageways and their ramps made one broad band).
+# Service roads, tracks, paths, footways and roads under construction or proposed are left out.
+ROAD_LINK = 8
+ROAD_CLASSES = {"motorway": 1, "trunk": 2, "primary": 3, "secondary": 4, "tertiary": 5, "unclassified": 6,
+                "residential": 6, "living_street": 6, "motorway_link": 1 + ROAD_LINK, "trunk_link": 2 + ROAD_LINK,
+                "primary_link": 3 + ROAD_LINK, "secondary_link": 4 + ROAD_LINK, "tertiary_link": 5 + ROAD_LINK}
 
 
 def road_kind(tags):
