@@ -7,39 +7,49 @@ string 3 "OpenStreetMap"
 string 4 "2026-09-20"
 string 5 "test-vectors"
 level 0 tz=12 zoom=12-14 bits=12 buffer=64 flags=0 full_class=0 keys=2619104-2619107 entries=4 tol_dm=100
-tile 0 1000 1500 len=67 crc=dd703270
+tile 0 1000 1500 len=73 crc=83514939
 feature line class=5 attr=- parts=1
-part 3 300,500 2500,700 4160,501
+part 2 300,1000 4160,1000
 feature line class=4 attr=- parts=1
-part 3 816,4160 700,3000 1100,200
+part 2 1000,200 1000,4160
 feature line class=3 attr=- parts=1
-part 3 200,200 4096,4096 4160,4157
+part 2 200,200 4160,4160
 feature line class=2 attr=- parts=1
-part 3 4100,300 4090,3000 4098,4160
+part 2 4160,3940 3940,4160
+feature line class=2 attr=- parts=1
+part 2 4100,300 4100,4160
 feature line class=1 attr=- parts=1
-part 3 3438,4160 4096,4096 4160,4089
-tile 0 1001 1500 len=58 crc=c1742c2b
+part 3 3876,4160 3976,4060 4160,4060
+feature line class=1 attr=- parts=1
+part 2 300,4016 3900,4016
+tile 0 1001 1500 len=55 crc=4c6dd726
 feature line class=5 attr=- parts=1
-part 3 -64,516 904,400 3704,900
+part 2 -64,1000 3704,1000
 feature line class=3 attr=- parts=1
-part 3 -64,4032 0,4096 68,4160
+part 2 -64,4032 64,4160
 feature line class=2 attr=- parts=1
-part 3 4,300 -6,3000 2,4160
+part 2 3704,300 -64,4068
+feature line class=2 attr=- parts=1
+part 2 4,300 4,4160
 feature line class=1 attr=- parts=1
-part 4 -64,4102 0,4096 1904,3900 3904,2000
-tile 0 1000 1501 len=58 crc=55f82931
+part 3 -64,4060 1904,4060 3904,2060
+tile 0 1000 1501 len=58 crc=681ce2ba
 feature line class=4 attr=- parts=1
-part 3 600,3804 900,904 803,-64
+part 2 1000,-64 1000,3804
 feature line class=3 attr=- parts=1
-part 3 4032,-64 4096,0 4160,61
+part 2 4032,-64 4160,64
 feature line class=2 attr=- parts=1
-part 3 4097,-64 4110,1904 4080,3804
+part 2 4068,-64 300,3704
+feature line class=2 attr=- parts=1
+part 2 4100,-64 4100,3804
 feature line class=1 attr=- parts=1
-part 4 100,1904 2000,204 4096,0 4160,-7
-tile 0 1001 1501 len=38 crc=46a32152
+part 4 100,1904 2036,1904 3976,-36 4160,-36
+tile 0 1001 1501 len=39 crc=4b326886
 feature line class=3 attr=- parts=1
-part 3 -64,-64 0,0 3804,3604
+part 2 -64,-64 3804,3804
 feature line class=2 attr=- parts=1
-part 3 1,-64 14,1904 -16,3804
+part 2 -28,-64 -64,-28
+feature line class=2 attr=- parts=1
+part 2 4,-64 4,3804
 feature line class=1 attr=- parts=1
-part 3 -64,6 0,0 622,-64
+part 3 -64,-36 1904,-36 1932,-64

@@ -176,16 +176,25 @@ ROAD_SEAM_TILE = (1000, 1500)  # top-left tile of the 2 x 2 block the seam roads
 
 
 def road_seam_lines():
-    """Roads over a 2 x 2 tile block, in level world units (tz 12, 12 bits): [(class, x array, y array)], one of each
-    class 1 to 5, crossing the block's inner tile borders at several angles, one of them along a border."""
+    """Roads over a 2 x 2 tile block, in level world units (tz 12, 12 bits): [(class, x array, y array)]. Every leg
+    runs along an axis or at 45 degrees through whole units, so each cut point is exact and the cut pieces lie on the
+    uncut road: a renderer's tiles then equal the uncut roads pixel for pixel. They cross the block's inner borders
+    straight on and diagonally (one through the corner where the four tiles meet), one runs just beside the vertical
+    border (inside both tiles' buffers), and the largest road bends beside the horizontal border and runs along it
+    2.25 px away at zoom 12, so the far tile draws the rim of its stroke from its buffer."""
     import numpy as np
     side = 1 << 12
     ox, oy = ROAD_SEAM_TILE[0] * side, ROAD_SEAM_TILE[1] * side
-    rel = [(5, [(300, 500), (2500, 700), (5000, 400), (7800, 900)]),
-           (4, [(600, 7900), (900, 5000), (700, 3000), (1100, 200)]),
-           (3, [(200, 200), (4096, 4096), (7900, 7700)]),
-           (2, [(4100, 300), (4090, 3000), (4110, 6000), (4080, 7900)]),  # along the block's vertical border
-           (1, [(100, 6000), (2000, 4300), (4096, 4096), (6000, 3900), (8000, 2000)])]
+    rel = [(5, [(300, 1000), (7800, 1000)]),
+           (4, [(1000, 200), (1000, 7900)]),
+           (3, [(200, 200), (7900, 7900)]),
+           (2, [(7800, 300), (300, 7800)]),
+           (2, [(4100, 300), (4100, 7900)]),
+           (1, [(100, 6000), (2036, 6000), (3976, 4060), (6000, 4060), (8000, 2060)]),
+           # 80 units above the horizontal border: outside the lower tile's buffer, while the class 4 road that crosses
+           # it reaches 64 units up from the lower tile. A renderer that let a tile draw outside its own square would
+           # put the lower tile's class 4 piece over this road's stroke.
+           (1, [(300, 4016), (3900, 4016)])]
     return [(c, np.array([ox + x for x, _ in pts], np.int64), np.array([oy + y for _, y in pts], np.int64))
             for c, pts in rel]
 
