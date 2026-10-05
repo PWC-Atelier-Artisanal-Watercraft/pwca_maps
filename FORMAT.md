@@ -298,6 +298,56 @@ The builder's levels (`tools/build_places.py`), with the roads' zooms:
 - A coverage grid: 1 where the level has a place in the cell, 0 elsewhere (no places data: nothing to look up). The
   value 2 and `full_class` are not used.
 
+### 7.6 The full packs (the builder's `--full` and `--minor`; work in progress, 2026-10-04)
+
+The owner, 2026-10-04: "I want as much detail as possible for the USA." A full pack keeps the kinds and the tile
+format above and adds classes and levels. A reader that does not know a class does not draw it, so a display that
+knows only sections 7.2 and 7.4 still draws its own classes from a full pack.
+
+**Water, full** (`build_pack.py --full`; layer kind 2): every water area from 50 m², and two more line classes:
+18 stream, 19 drain or ditch (16 river and 17 canal as before). Intermittent water and culverts stay out.
+
+| Level | Tile zoom | Serves | Bits | Buffer | Tolerance | Smallest inland area | Lines |
+|---|---|---|---|---|---|---|---|
+| L0 | 8 | 8 to 9 | 12 | 32 | 150 m | 25 ha | 16, 17 |
+| L1 | 10 | 10 to 11 | 12 | 32 | 40 m | 1 ha | 16, 17 |
+| L2 | 12 | 12 to 13 | 12 | 32 | 10 m | 2,000 m² | 16, 17 |
+| L3 | 12 | 14 | 16 | 512 | 4 m | 400 m² | 16 to 18 |
+| L4 | 14 | 15 to 16 | 14 | 256 | 2 m | all | all |
+
+The last level is cut at zoom 14, so a display at zoom 16 reads a tile one sixteenth of a zoom-12 tile. The build
+also writes `names.tsv` beside the pack (type A area, B bay or strait, L line; class; size in m² or m; a label point
+in 1e-7 degrees; the name) for the places builder.
+
+**Lines, full** (`build_pack.py --layer roads --full`; layer kind 4): the roads of section 7.4 and, as more classes:
+
+| Class | What | Class | What |
+|---|---|---|---|
+| 17 | railway (not in a tunnel) | 21 | pier, breakwater, groyne |
+| 18 | runway | 22 | dam, weir, lock gate |
+| 19 | taxiway | 24 | state or province border (not at sea) |
+| 20 | ferry route | 25 | country border (not at sea) |
+
+| Level | Tile zoom | Serves | Bits | Buffer | Tolerance | Classes |
+|---|---|---|---|---|---|---|
+| L0 | 4 | 4 to 5 | 12 | 64 | 2,500 m | 1, 24, 25 |
+| L1 | 6 | 6 to 7 | 12 | 64 | 600 m | 1, 24, 25 |
+| L2 | 8 | 8 to 9 | 12 | 64 | 150 m | 1, 2, 24, 25 |
+| L3 | 10 | 10 to 11 | 12 | 64 | 40 m | 1 to 3, 17, 24, 25 |
+| L4 | 12 | 12 to 13 | 12 | 64 | 10 m | 1 to 5, 17, 18, 20, 24, 25 |
+| L5 | 12 | 14 | 16 | 512 | 4 m | 1 to 6, 9 to 13, 17 to 22, 24, 25 |
+| L6 | 14 | 15 to 16 | 14 | 256 | 2 m | all of the above |
+
+The two levels cut below zoom 8 have no coverage grid and are only in the first file of a pack.
+
+**Minor ways** (`build_pack.py --layer roads --minor`; layer kind 4, a file of its own): 7 service road, 8 track,
+16 path (path, footway that is not a pavement or crossing, cycleway, bridleway, pedestrian street, steps). One level:
+tile zoom 14, serving 15 to 16, 14 bits, buffer 256, tolerance 2 m. A display draws these under every road, and may
+leave the file out when it is short of time.
+
+A tile over the display's budget gives up its least class first (the shortest line first within a class), then its
+smallest areas, never the sea.
+
 ## 8. Reader rules
 
 On open a reader checks: the magic and major version; that a file of layer kind 4 or 5 states minor version 1 or
