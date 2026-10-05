@@ -327,18 +327,24 @@ in 1e-7 degrees; the name) for the places builder.
 | 18 | runway | 22 | dam, weir, lock gate |
 | 19 | taxiway | 24 | state or province border (not at sea) |
 | 20 | ferry route | 25 | country border (not at sea) |
+| 23 | minor railway: yard, siding, spur, tram, light rail, subway above ground | | |
+
+Class 17 is a main or branch line (`railway` = rail or narrow_gauge without a `service` tag). A border way tagged as a
+sea border (`maritime=yes`, a `border_type` of the sea, `boundary=maritime`) or as coastline is left out.
 
 | Level | Tile zoom | Serves | Bits | Buffer | Tolerance | Classes |
 |---|---|---|---|---|---|---|
 | L0 | 4 | 4 to 5 | 12 | 64 | 2,500 m | 1, 24, 25 |
-| L1 | 6 | 6 to 7 | 12 | 64 | 600 m | 1, 24, 25 |
+| L1 | 6 | 6 to 7 | 12 | 64 | 600 m | 1, 2, 24, 25 |
 | L2 | 8 | 8 to 9 | 12 | 64 | 150 m | 1, 2, 24, 25 |
 | L3 | 10 | 10 to 11 | 12 | 64 | 40 m | 1 to 3, 17, 24, 25 |
 | L4 | 12 | 12 to 13 | 12 | 64 | 10 m | 1 to 5, 17, 18, 20, 24, 25 |
-| L5 | 12 | 14 | 16 | 512 | 4 m | 1 to 6, 9 to 13, 17 to 22, 24, 25 |
-| L6 | 14 | 15 to 16 | 14 | 256 | 2 m | all of the above |
+| L5 | 12 | 14 | 16 | 512 | 4 m | 1 to 6, 9 to 13, 17 to 25 |
+| L6 | 14 | 15 to 16 | 14 | 256 | 2 m | as L5 |
 
-The two levels cut below zoom 8 have no coverage grid and are only in the first file of a pack.
+The two levels cut below zoom 8 have no coverage grid and are only in the first file of a pack. Their motorways and
+trunk roads are joined into long chains through their junctions, and a piece shorter than twice the level's tolerance
+(under a pixel there) is left out; over a tile's budget the borders are kept before the roads.
 
 **Minor ways** (`build_pack.py --layer roads --minor`; layer kind 4, a file of its own): 7 service road, 8 track,
 16 path (path, footway that is not a pavement or crossing, cycleway, bridleway, pedestrian street, steps). One level:

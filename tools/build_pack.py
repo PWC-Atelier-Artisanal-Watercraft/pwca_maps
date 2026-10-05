@@ -82,13 +82,17 @@ LEVELS_FULL = [
 # leave it out when it is short of time.
 LINE_LEVELS_FULL = [
     (4, 4, 5, 12, 64, 2500.0, 0.0, {1, 24, 25}),
-    (6, 6, 7, 12, 64, 600.0, 0.0, {1, 24, 25}),
+    (6, 6, 7, 12, 64, 600.0, 0.0, {1, 2, 24, 25}),
     (8, 8, 9, 12, 64, 150.0, 0.0, {1, 2, 24, 25}),
     (10, 10, 11, 12, 64, 40.0, 0.0, {1, 2, 3, 17, 24, 25}),
     (12, 12, 13, 12, 64, 10.0, 0.0, {1, 2, 3, 4, 5, 17, 18, 20, 24, 25}),
-    (12, 14, 14, 16, 512, 4.0, 0.0, {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 24, 25}),
-    (14, 15, 16, 14, 256, 2.0, 0.0, None),
+    (12, 14, 14, 16, 512, 4.0, 0.0, {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 23, 24, 25}),
+    (14, 15, 16, 14, 256, 2.0, 0.0, {1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 23, 24, 25}),
 ]
+# In the store only: the motorways and trunk roads joined into long chains through their junctions, for the two
+# levels cut below zoom 8 (written there as classes 1 and 2).
+LOW_CHAINS = {1: 101, 2: 102}
+LOW_RANK = {25: 100, 24: 99, 1: 60, 2: 50}
 MINOR_LEVELS = [(14, 15, 16, 14, 256, 2.0, 0.0, None)]
 MIN_AREA_FULL_M2 = 50.0  # a full water pack keeps every water area from 50 m2 (its levels choose by zoom)
 MIN_AREA_M2 = 10_000.0
@@ -96,7 +100,8 @@ TILE_FEATURE_BUDGET = 12_000  # under the display's 16,384 features or parts per
 TILE_POINT_BUDGET = 100_000  # under the display's 131,072 points per tile, with room (fit_tile)
 REGION_ZOOM = 7  # regions of z7 tiles (about 300 km): one worker job each
 REGION_MARGIN_DEG = 0.05  # features within this of a region are cut for it (the largest tile buffer is < 0.003 deg)
-MAX_FILE_BYTES = 2_000_000_000  # under 2 GiB, with room for the header block and index
+MAX_FILE_BYTES = 2_000_000_000  # under 2 GiB, with room for the header block
+INDEX_BYTES = 16  # an index entry: counted with each tile towards MAX_FILE_BYTES
 EARTH_R = 6_378_137.0
 CREDIT = "© OpenStreetMap contributors"
 LICENSE_TEXT = ("This map data is made available under the Open Database License (ODbL) 1.0: "
@@ -200,6 +205,8 @@ def water_relation_full(tags):
 # Other roads and lines. Classes 9 to 13 are the links (a road's class + 8).
 LINE_SERVICE, LINE_TRACK, LINE_PATH, LINE_RAIL, LINE_RUNWAY, LINE_TAXIWAY, LINE_FERRY, LINE_PIER, LINE_DAM = (
     7, 8, 16, 17, 18, 19, 20, 21, 22)
+LINE_RAIL_MINOR = 23  # a yard, siding or spur, a tram, a light railway: from zoom 14
+SEA_BORDERS = ("territorial", "maritime", "eez", "contiguous", "baseline")
 LINE_STATE, LINE_COUNTRY = 24, 25
 MINOR_ROADS = {"service": LINE_SERVICE, "busway": LINE_SERVICE, "road": 6, "track": LINE_TRACK, "path": LINE_PATH,
                "footway": LINE_PATH, "cycleway": LINE_PATH, "bridleway": LINE_PATH, "pedestrian": LINE_PATH,
@@ -207,7 +214,7 @@ MINOR_ROADS = {"service": LINE_SERVICE, "busway": LINE_SERVICE, "road": 6, "trac
 RAILS = ("rail", "light_rail", "narrow_gauge", "subway", "tram", "monorail", "funicular")
 MINOR = {LINE_SERVICE, LINE_TRACK, LINE_PATH}
 # Classes whose ways are joined end to end (join_lines); the small classes are stored way by way.
-JOINED = set(range(1, 7)) | set(range(9, 14)) | {LINE_RAIL, LINE_STATE, LINE_COUNTRY}
+JOINED = set(range(1, 7)) | set(range(9, 14)) | {LINE_RAIL, LINE_RAIL_MINOR, LINE_STATE, LINE_COUNTRY}
 SKIP = 0  # a way that is left out even when a border relation holds it (a border out at sea)
 
 
@@ -221,8 +228,11 @@ def line_kind_full(tags):
         if c == LINE_PATH and hw == "footway" and tags.get("footway") in ("sidewalk", "crossing"):
             return None  # a pavement beside a road that is drawn already
         return (None, c) if c and c not in MINOR else None
-    if tags.get("railway") in RAILS:
-        return None if tags.get("tunnel") == "yes" else (None, LINE_RAIL)
+    rw = tags.get("railway")
+    if rw in RAILS:
+        if tags.get("tunnel") == "yes":
+            return None
+        return (None, LINE_RAIL if rw in ("rail", "narrow_gauge") and not tags.get("service") else LINE_RAIL_MINOR)
     aw = tags.get("aeroway")
     if aw in ("runway", "taxiway"):
         return (None, LINE_RUNWAY if aw == "runway" else LINE_TAXIWAY)
@@ -232,7 +242,8 @@ def line_kind_full(tags):
         return (None, LINE_PIER)
     if tags.get("waterway") in ("dam", "weir", "lock_gate"):
         return (None, LINE_DAM)
-    if tags.get("maritime") == "yes":
+    if (tags.get("maritime") == "yes" or tags.get("border_type") in SEA_BORDERS
+            or tags.get("boundary") == "maritime" or tags.get("natural") == "coastline"):
         return (None, SKIP)
     return None
 
@@ -329,10 +340,11 @@ def assemble_rings(way_refs):
     return rings, unclosed
 
 
-def join_lines(way_refs):
+def join_lines(way_refs, greedy=False):
     """Joins open ways (node id arrays) end to end where exactly two of them meet at a node, so a road split at every
     bridge or tag change becomes one line (fewer features per tile, no gaps from a tile's budget). Closed ways stay
-    alone. Returns the chains as node id arrays."""
+    alone. Returns the chains as node id arrays. greedy: a chain also runs on through a junction, with any way there
+    that is not in a chain yet (the long chains of the whole-country levels)."""
     n = len(way_refs)
     ends = {}
     for i, r in enumerate(way_refs):
@@ -343,6 +355,8 @@ def join_lines(way_refs):
 
     def other(node, cur):
         at = ends.get(node, ())
+        if greedy:
+            return next((j for j in at if not used[j] and j != cur), None)
         if len(at) != 2:
             return None
         j = at[1] if at[0] == cur else at[0]
@@ -450,7 +464,6 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
         member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
         log(f"relations: {len(rels)} water multipolygons, {member_ids.size} member ways ({time.time() - t0:.0f} s)")
         ws = osmpbf.ways_parallel(path, way_kind, member_ids, processes)  # (id, (area, line) or () for members, refs)
-    del member_ids
     refs_total = sum(len(r) for _, _, r in ws)
     log(f"ways: {len(ws)}, {refs_total} node references ({time.time() - t0:.0f} s)")
     if ws:
@@ -507,6 +520,11 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
                 la, lo = coords(chain)
                 if la.size >= 2:
                     lines.add(lc, [(la, lo, False)])
+            if layer == "lines-full" and lc in LOW_CHAINS:
+                for chain in join_lines(by_class[lc], greedy=True):
+                    la, lo = coords(chain)
+                    if la.size >= 2:
+                        lines.add(LOW_CHAINS[lc], [(la, lo, False)])
             by_class[lc] = None
         log(f"roads: {n_ways} ways joined into {len(lines)} lines"
             + (f" ({n_alone} of them stored way by way)" if full else "") + f" ({time.time() - t0:.0f} s)")
@@ -533,7 +551,9 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
                 if name:
                     mid = la.size // 2
                     put_name("L", lc, line_length_m(deg(la), deg(lo)), float(deg(la[mid])), float(deg(lo[mid])), name)
-    way_by_id = {wid: refs for wid, _, refs in ws}
+    is_member = np.isin(np.fromiter((w[0] for w in ws), np.int64, len(ws)), member_ids)
+    way_by_id = {ws[i][0]: ws[i][2] for i in np.flatnonzero(is_member).tolist()}
+    del member_ids, is_member
     for rid, tags, members in rels:
         cls = area_class(tags)
         outer_refs = [way_by_id[m] for t, m, role in members if t == 1 and role in ("outer", "") and m in way_by_id]
@@ -709,7 +729,7 @@ def _line_length(feature):
 
 # What a full pack's tile gives up first when it is over the display's budget: the lowest rank, the shortest first.
 LINE_RANK = {1: 100, 2: 96, 25: 95, 24: 94, 3: 90, 4: 86, 5: 82, 17: 78, 6: 70, 9: 64, 10: 63, 11: 62, 12: 61, 13: 60,
-             18: 58, 20: 57, 21: 56, 22: 55, 19: 54, 7: 30, 8: 26, 16: 20}
+             18: 58, 20: 57, 21: 56, 22: 55, 19: 54, 23: 52, 7: 30, 8: 26, 16: 20}
 LINE_RANK_WATER = {16: 100, 17: 90, 18: 40, 19: 30}
 
 
@@ -753,14 +773,17 @@ def low_level_tiles(store_dir, layer):
     if not low:
         return {}
     _poly_store, line_store = _stores(str(store_dir))
-    wanted = sorted(set().union(*[lv[7] for _, lv in low]))
-    lines = [(c, rings[0][0], rings[0][1]) for c, rings in
+    chains = {v: k for k, v in LOW_CHAINS.items()}  # the long chains stand in for their classes here
+    wanted = sorted((set().union(*[lv[7] for _, lv in low]) - set(LOW_CHAINS)) | set(chains))
+    lines = [(chains.get(c, c), rings[0][0], rings[0][1], line_length_m(rings[0][0], rings[0][1])) for c, rings in
              (line_store.feature(int(i)) for i in np.flatnonzero(np.isin(line_store.cls, wanted)))]
     out = {}
     for i, lv in low:
-        tiles = level_tiles([], lines, lv, None)
-        out[i] = {key: pmt.encode_tile(fit_tile(feats, LINE_RANK)[0], lv[3], lv[4], pmt.KIND_ROADS)
+        # A piece shorter than twice the level's tolerance is under a pixel there: left out.
+        tiles = level_tiles([], [(c, la, lo) for c, la, lo, m in lines if m >= 2 * lv[5]], lv, None)
+        out[i] = {key: pmt.encode_tile(fit_tile(feats, LOW_RANK)[0], lv[3], lv[4], pmt.KIND_ROADS)
                   for key, feats in tiles.items()}
+    _STORES.clear()
     return out
 
 
@@ -894,13 +917,13 @@ def main(argv):
     acc, acc_bytes, done, last_log = new_acc(), 0, 0, time.time()
     for i, blobs in low_level_tiles(store_dir, layer).items():  # the levels cut below zoom 8: in the first file
         acc[i][1].update(blobs)
-        acc_bytes += sum(len(b) for b in blobs.values())
+        acc_bytes += sum(len(b) + INDEX_BYTES for b in blobs.values())
         log(f"level {i} (cut at zoom {lv_table[i][0]}): {len(blobs)} tiles from the whole store")
     pool = multiprocessing.get_context("spawn").Pool(a.processes) if a.processes > 1 else None
     try:
         results = pool.imap(region_job, jobs) if pool else map(region_job, jobs)
         for region, res, nfeat in results:
-            size = sum(len(b) for _, blobs in res for b in blobs.values())
+            size = sum(len(b) + INDEX_BYTES for _, blobs in res for b in blobs.values())
             if acc_bytes and acc_bytes + size > a.max_file_bytes:
                 flush(acc)
                 acc, acc_bytes = new_acc(), 0
@@ -927,6 +950,8 @@ def main(argv):
     for (path, *_), dst in zip(files, final):
         path.replace(dst)
     if not a.keep_store:
+        _STORES.clear()
+        gc.collect()
         shutil.rmtree(store_dir, ignore_errors=True)
 
     (out / "LICENSE.txt").write_text(LICENSE_TEXT, encoding="utf-8", newline="\n")
