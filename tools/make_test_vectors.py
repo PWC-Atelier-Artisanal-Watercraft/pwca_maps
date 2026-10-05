@@ -192,6 +192,32 @@ def roads_dense():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+def lines_full():
+    """A full lines file (FORMAT.md 7.6): a level cut at zoom 4 for the whole-country views (a motorway, a trunk road,
+    a state and a country border, and a residential road and a railway that no renderer draws there), and a level cut
+    at zoom 14 with a 14-bit tile where every line class meets the others: a path, a service road and a track that
+    cross a residential road, a motorway and the borders (the minor ways lie under all of them); the borders and the
+    railway under the roads; a runway, a taxiway, a pier, a dam and a ferry route on their own."""
+    lo, hi = -64, 4160
+    wide = [(LINE, 1, None, [[(lo, 1000), (hi, 1000)]]), (LINE, 2, None, [[(lo, 2000), (hi, 2000)]]),
+            (LINE, 6, None, [[(lo, 3000), (hi, 3000)]]), (LINE, 17, None, [[(lo, 3500), (hi, 3500)]]),
+            (LINE, 24, None, [[(1000, lo), (1000, hi)]]), (LINE, 25, None, [[(2000, lo), (2000, hi)]])]
+    l0 = {"tile_zoom": 4, "zoom_min": 4, "zoom_max": 7, "coord_bits": 12, "buffer": 64, "tolerance_dm": 25000,
+          "tiles": {(3, 5): wide}}
+    lo, hi = -256, 16640
+    close = [(LINE, 1, None, [[(lo, 8000), (hi, 8000)]]), (LINE, 6, None, [[(4000, lo), (4000, hi)]]),
+             (LINE, 16, None, [[(0, 0), (16384, 16384)]]), (LINE, 7, None, [[(lo, 12000), (hi, 12000)]]),
+             (LINE, 8, None, [[(lo, 13000), (hi, 13000)]]), (LINE, 17, None, [[(lo, 3008), (hi, 3008)]]),
+             (LINE, 23, None, [[(lo, 3520), (hi, 3520)]]), (LINE, 24, None, [[(10000, lo), (10000, hi)]]),
+             (LINE, 25, None, [[(11008, lo), (11008, hi)]]), (LINE, 21, None, [[(14016, 1024), (14016, 2048)]]),
+             (LINE, 22, None, [[(15008, 1024), (15008, 2048)]]), (LINE, 20, None, [[(lo, 15008), (hi, 15008)]]),
+             (LINE, 18, None, [[(6016, 5024), (9024, 5024)]]), (LINE, 19, None, [[(6016, 5536), (9024, 5536)]])]
+    l1 = {"tile_zoom": 14, "zoom_min": 15, "zoom_max": 16, "coord_bits": 14, "buffer": 256, "tolerance_dm": 20,
+          "grid": {(40, 90): 1}, "tiles": {(2600, 5800): close}}
+    return dict(layer_kind=pmt.KIND_ROADS, levels=[l0, l1], strings=ROAD_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
 PLACE_STRINGS = ["osm-places", "© OpenStreetMap contributors", "ODbL 1.0", "OpenStreetMap", "2026-09-20",
                  "test-vectors"]
 
@@ -312,7 +338,7 @@ def seam_rings_text():
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
            "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam,
-           "roads_dense": roads_dense, "places": places, "places_dense": places_dense}
+           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full}
 
 
 def main(argv):
