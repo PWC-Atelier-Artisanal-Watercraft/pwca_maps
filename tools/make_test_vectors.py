@@ -262,6 +262,40 @@ def places():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+def minor_only():
+    """A minor ways' file (FORMAT.md 7.6): one 14-bit level cut at zoom 14, serving zooms 15 and 16, in the tile of
+    lines_full's close level: a service road, a track and a path. A display draws it after the roads' own file."""
+    lo, hi = -256, 16640
+    close = [(LINE, 7, None, [[(lo, 2000), (hi, 2000)]]), (LINE, 8, None, [[(lo, 2496), (hi, 2496)]]),
+             (LINE, 16, None, [[(lo, 4000), (hi, 4000)]])]
+    level = {"tile_zoom": 14, "zoom_min": 15, "zoom_max": 16, "coord_bits": 14, "buffer": 256, "tolerance_dm": 20,
+             "grid": {(40, 90): 1}, "tiles": {(2600, 5800): close}}
+    return dict(layer_kind=pmt.KIND_ROADS, levels=[level], strings=ROAD_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+NAME_ORDER = [6, 5, 7, 16, 1, 17, 18, 2, 24, 19, 25, 3, 20, 32, 26, 21, 4, 27, 33, 22, 28]
+
+
+def names_full():
+    """A full names file (FORMAT.md 7.6): a level cut at zoom 4 for the whole-country views (the largest cities, a
+    state, a great lake, and a town that no display labels there), and a 14-bit level cut at zoom 14 with one name of
+    every class, written in the REVERSE of the order a display takes them in, and three classes nobody knows."""
+    wide = [(POINT, 2, None, (3500, 2000, b"Town")), (POINT, 1, None, (2500, 2000, b"City")),
+            (POINT, 16, None, (1500, 2000, b"Great Lake")), (POINT, 7, None, (3000, 1000, b"Large City")),
+            (POINT, 5, None, (2000, 1000, b"State")), (POINT, 6, None, (1000, 1000, b"Big City"))]
+    l0 = {"tile_zoom": 4, "zoom_min": 4, "zoom_max": 7, "coord_bits": 12, "buffer": 0, "tolerance_dm": 0,
+          "tiles": {(3, 5): wide}}
+    close = [(POINT, c, None, (1000 + 600 * i, 15000 - 600 * i, f"Class {c}".encode()))
+             for i, c in enumerate(reversed(NAME_ORDER))]
+    close += [(POINT, 9, None, (8000, 2000, b"Unknown 9")), (POINT, 23, None, (9000, 2000, b"Unknown 23")),
+              (POINT, 34, None, (10000, 2000, b"Unknown 34"))]
+    l1 = {"tile_zoom": 14, "zoom_min": 15, "zoom_max": 16, "coord_bits": 14, "buffer": 0, "tolerance_dm": 0,
+          "grid": {(40, 90): 1}, "tiles": {(2600, 5800): close}}
+    return dict(layer_kind=pmt.KIND_PLACES, levels=[l0, l1], strings=PLACE_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
 def places_dense():
     """One detail tile with more places than a display keeps as label candidates: 3 towns, 100 villages on a grid and
     150 hamlets on a diagonal. A display keeps the highest ranks first and, within a rank, the nearest to the craft."""
@@ -338,7 +372,7 @@ def seam_rings_text():
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
            "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam,
-           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full}
+           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full, "names_full": names_full, "minor_only": minor_only}
 
 
 def main(argv):
