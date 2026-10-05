@@ -56,6 +56,19 @@ def water_levels():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+def water_lines():
+    """A full water pack's lines (FORMAT.md 7.6) in one 16-bit detail tile: a river (class 16) and a stream (class 18)
+    side by side, the stream one pixel wide at every zoom; and a river zigzag of 400 points, more segments than a
+    small edge list holds: a renderer fills its lines in parts and never draws from a list that overflowed."""
+    zig = [(1000 + 150 * i, 40000 if i % 2 == 0 else 44000) for i in range(400)]
+    feats = [(LINE, 16, None, [[(-512, 20000), (66048, 20000)]]), (LINE, 18, None, [[(-512, 30000), (66048, 30000)]]),
+             (LINE, 16, None, [zig])]
+    level = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 16, "coord_bits": 16, "buffer": 512, "tolerance_dm": 40,
+             "tiles": {(1000, 1500): feats}}
+    return dict(layer_kind=pmt.KIND_WATER, levels=[level], strings=OSM_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
 def zones():
     """Zones with attribute records (names with UTF-8, quotes and backslashes, an unknown tag) and string escapes."""
     attrs = [
@@ -372,7 +385,7 @@ def seam_rings_text():
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
            "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam,
-           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full, "names_full": names_full, "minor_only": minor_only}
+           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full, "names_full": names_full, "minor_only": minor_only, "water_lines": water_lines}
 
 
 def main(argv):
