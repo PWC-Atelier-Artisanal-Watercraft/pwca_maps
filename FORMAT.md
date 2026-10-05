@@ -354,6 +354,26 @@ leave the file out when it is short of time.
 A tile over the display's budget gives up its least class first (the shortest line first within a class), then its
 smallest areas, never the sea.
 
+**Names, full** (`build_places.py --full --names <the water build's names.tsv>`; layer kind 5). A class says what
+kind of name it is and how much it matters, so a display can rank the names of the tiles in view:
+
+| Class | Name of | First zoom |
+|---|---|---|
+| 1 to 4 | city, town, village, hamlet (section 7.5) | 8, 10, 12, 14 |
+| 5 | state or province | 4 (to zoom 9 only) |
+| 6, 7 | city of a million people or more; of 250,000 or more | 4, 6 |
+| 16 to 22 | water area (lake, reservoir, bay), by size: from 20,000 km², 1,000 km², 50 km², 5 km², 25 ha, 2 ha, smaller | 4, 6, 8, 10, 12, 14, 15 |
+| 24, 25 | river whose length in a tile cut at zoom 8 (24) or 10 (25) is 0.6 of the tile's width or more | 8, 10 |
+| 26, 27, 28 | other river; canal; stream | 12, 14, 15 |
+| 32, 33 | island; islet (mapped as points) | 12, 14 |
+
+Seven levels, with the full lines pack's zooms: tile zoom 4 (zooms 4 to 5), 6 (6 to 7), 8 (8 to 9), 10 (10 to 11),
+12 (12 to 13), 12 with 16 bits (14), 14 with 14 bits (15 to 16); no buffer. A bay mapped as a point is class 20.
+A named waterway gives a point every 1.5 km along each of its ways; the points of one name in one tile are one name,
+at the longest way's point. Names of one kind with the same text in one tile are written once. A tile's names are in
+the order a display with room for a few should take them: 6, 5, 7, 16, 1, 17, 18, 2, 24, 19, 25, 3, 20, 32, 26, 21,
+4, 27, 33, 22, 28; within a class the largest (people, area, length) first. `tools/names_at.py` lists a point's names.
+
 ## 8. Reader rules
 
 On open a reader checks: the magic and major version; that a file of layer kind 4 or 5 states minor version 1 or

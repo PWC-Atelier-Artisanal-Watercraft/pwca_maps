@@ -94,6 +94,7 @@ LINE_LEVELS_FULL = [
 LOW_CHAINS = {1: 101, 2: 102}
 LOW_RANK = {25: 100, 24: 99, 1: 60, 2: 50}
 MINOR_LEVELS = [(14, 15, 16, 14, 256, 2.0, 0.0, None)]
+NAME_EVERY_M = 1500.0  # names.tsv: a named waterway's label points are this far apart
 MIN_AREA_FULL_M2 = 50.0  # a full water pack keeps every water area from 50 m2 (its levels choose by zoom)
 MIN_AREA_M2 = 10_000.0
 TILE_FEATURE_BUDGET = 12_000  # under the display's 16,384 features or parts per tile, with room (fit_tile)
@@ -549,8 +550,13 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
             if la.size >= 2:
                 lines.add(lc, [(la, lo, False)])
                 if name:
-                    mid = la.size // 2
-                    put_name("L", lc, line_length_m(deg(la), deg(lo)), float(deg(la[mid])), float(deg(lo[mid])), name)
+                    # A label point every NAME_EVERY_M along the way, each standing for its share of the length, so
+                    # a long river has its name in every tile it crosses.
+                    m = line_length_m(deg(la), deg(lo))
+                    k = max(1, min(int(la.size), int(round(m / NAME_EVERY_M))))
+                    for j in range(k):
+                        at = min(int(la.size) - 1, int((j + 0.5) * la.size / k))
+                        put_name("L", lc, m / k, float(deg(la[at])), float(deg(lo[at])), name)
     is_member = np.isin(np.fromiter((w[0] for w in ws), np.int64, len(ws)), member_ids)
     way_by_id = {ws[i][0]: ws[i][2] for i in np.flatnonzero(is_member).tolist()}
     del member_ids, is_member
