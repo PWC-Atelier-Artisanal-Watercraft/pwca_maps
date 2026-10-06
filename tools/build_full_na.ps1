@@ -29,10 +29,10 @@ if (-not $short) {
     exit 2
 }
 $snap = Join-Path $repo "out\_tools-$short"
-if (-not (Test-Path (Join-Path $snap "toolsuild_pack.py"))) {
+if (-not (Test-Path (Join-Path $snap "tools\build_pack.py"))) {
     git -C $repo worktree add --detach $snap $Commit 2>&1 | Out-Null
 }
-if (-not (Test-Path (Join-Path $snap "toolsuild_pack.py"))) {
+if (-not (Test-Path (Join-Path $snap "tools\build_pack.py"))) {
     Write-Host "Could not make the snapshot of the tools at $snap"
     exit 2
 }
