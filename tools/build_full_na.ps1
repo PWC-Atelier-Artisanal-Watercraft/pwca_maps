@@ -19,12 +19,22 @@ param(
     [string]$Sea = "sources\water-polygons-split-4326.zip",
     [switch]$Normal
 )
-$ErrorActionPreference = "Stop"
+# "Continue": git and python write ordinary progress to their error stream, which must not end this script; every
+# step's exit code is checked instead.
+$ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
-$short = (git -C $repo rev-parse --short $Commit).Trim()
+$short = "$(git -C $repo rev-parse --short $Commit 2>$null)".Trim()
+if (-not $short) {
+    Write-Host "No such commit in ${repo}: $Commit"
+    exit 2
+}
 $snap = Join-Path $repo "out\_tools-$short"
-if (-not (Test-Path $snap)) {
-    git -C $repo worktree add --detach $snap $Commit | Out-Null
+if (-not (Test-Path (Join-Path $snap "toolsuild_pack.py"))) {
+    git -C $repo worktree add --detach $snap $Commit 2>&1 | Out-Null
+}
+if (-not (Test-Path (Join-Path $snap "toolsuild_pack.py"))) {
+    Write-Host "Could not make the snapshot of the tools at $snap"
+    exit 2
 }
 $outDir = Join-Path $repo $Out
 New-Item -ItemType Directory -Force $outDir | Out-Null
@@ -55,7 +65,6 @@ foreach ($step in $Steps) {
     Say ("{0}: start (build {1} of {2}; tools at {3})" -f $step, $n, $Steps.Count, $short)
     $stepArgs = $runs[$step]
     if (-not $Normal) { $stepArgs += "--high-priority" }
-    $ErrorActionPreference = "Continue"  # a line on the build's error stream must not end this script
     & python -u $tool @stepArgs 2>&1 | ForEach-Object {
         $line = "$_"
         Add-Content -Path $log -Value $line -Encoding utf8
@@ -70,7 +79,6 @@ foreach ($step in $Steps) {
         }
     }
     $code = $LASTEXITCODE
-    $ErrorActionPreference = "Stop"
     $doneShare += $share[$step]
     Say ("{0}: exit {1}" -f $step, $code)
     if ($code -ne 0) {
