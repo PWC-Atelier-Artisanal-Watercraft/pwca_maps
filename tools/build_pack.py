@@ -426,12 +426,18 @@ def sha256(path):
     return h.hexdigest()
 
 
-def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
+def collect_store(path, store_dir, log, processes, sea=None, layer="water", progress=None):
     """Reads the extract into feature stores under store_dir ("poly": sea, then areas from ways, then from relations;
     "line": river and canal lines, or with layer "roads" the road lines only), in the order a tile draws them. Returns
     (the zoom-8 cells with data, stats)."""
     t0 = time.time()
     full = is_full(layer)
+    progress = progress or (lambda phase, fraction: None)
+
+    def passing(phase):
+        osmpbf.PROGRESS = lambda done, total: progress(phase, done / total)
+
+    passing("relations")
     border = {}  # way id -> border class (the full lines pack: the member ways of country and state borders)
     names = open(Path(store_dir).parent / "names.tsv", "w", encoding="utf-8", newline="\n") if layer == "water-full" \
         else None
@@ -441,9 +447,11 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
 
     if layer == "roads":
         rels, member_ids, sea = [], np.zeros(0, np.int64), None
+        passing("ways")
         ws = osmpbf.ways_parallel(path, road_kind, member_ids, processes)
     elif layer == "minor-full":
         rels, member_ids, sea = [], np.zeros(0, np.int64), None
+        passing("ways")
         ws = osmpbf.ways_parallel(path, line_kind_minor, member_ids, processes)
     elif layer == "lines-full":
         sea = None
@@ -454,16 +462,19 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
                     border[m] = max(border.get(m, 0), c)
         rels, member_ids = [], np.array(sorted(border), np.int64)
         log(f"relations: {member_ids.size} member ways of country and state borders ({time.time() - t0:.0f} s)")
+        passing("ways")
         ws = osmpbf.ways_parallel(path, line_kind_full, member_ids, processes)
     elif full:
         rels = osmpbf.relations_parallel(path, water_relation_full, processes)
         member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
         log(f"relations: {len(rels)} water multipolygons, {member_ids.size} member ways ({time.time() - t0:.0f} s)")
+        passing("ways")
         ws = osmpbf.ways_parallel(path, way_kind_full, member_ids, processes)
     else:
         rels = osmpbf.relations_parallel(path, water_relation, processes)
         member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
         log(f"relations: {len(rels)} water multipolygons, {member_ids.size} member ways ({time.time() - t0:.0f} s)")
+        passing("ways")
         ws = osmpbf.ways_parallel(path, way_kind, member_ids, processes)  # (id, (area, line) or () for members, refs)
     refs_total = sum(len(r) for _, _, r in ws)
     log(f"ways: {len(ws)}, {refs_total} node references ({time.time() - t0:.0f} s)")
@@ -476,7 +487,10 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water"):
         del keep
     else:
         needed = np.zeros(0, np.int64)
+    passing("nodes")
     lat, lon, cells = osmpbf.nodes_e7_parallel(path, needed, processes, cell_zoom=8)
+    osmpbf.PROGRESS = None
+    progress("store", 0.0)
     missing = np.iinfo(np.int32).min
     log(f"nodes: {needed.size} needed, {int((lat == missing).sum())} missing; {len(cells)} zoom-8 cells with data "
         f"({time.time() - t0:.0f} s)")
@@ -851,6 +865,7 @@ def main(argv):
     ap.add_argument("--region-zoom", type=int, default=REGION_ZOOM, help="regions: quadtree nodes at this zoom (0-8)")
     ap.add_argument("--max-file-bytes", type=int, default=MAX_FILE_BYTES)
     ap.add_argument("--low-priority", action="store_true", help="run below normal priority")
+    ap.add_argument("--high-priority", action="store_true", help="run at high priority (every worker process too)")
     ap.add_argument("--keep-store", action="store_true", help="keep the feature store (<out_dir>/store)")
     ap.add_argument("--reuse-store", action="store_true",
                     help="skip the passes over the extract: cut from a complete store kept by an earlier run")
@@ -866,6 +881,9 @@ def main(argv):
         ap.error("--region-zoom must be 0-8 (regions hold whole zoom-8 coverage cells)")
     if a.low_priority:
         lower_priority()
+    if a.high_priority:
+        os.environ["PWCA_MAPS_PRIORITY"] = "high"  # the worker processes read it as they start
+        osmpbf.apply_priority()
     layer = {"water": "water-full", "roads": "lines-full"}[a.layer] if a.full else a.layer
     if a.minor:
         if a.layer != "roads" or a.full:
@@ -878,6 +896,24 @@ def main(argv):
     t0 = time.time()
     log = lambda msg: print(f"[{time.time() - t0:6.0f} s] {msg}", flush=True)
 
+    # How far the build is, as a line "PROGRESS n% ..." each time the whole percent changes. The shares of the phases
+    # are rough (from the North America builds of 2026-10): the time left is a guide, not a promise.
+    phases = [("relations", 0.03), ("ways", 0.40), ("nodes", 0.05), ("store", 0.07), ("tiles", 0.45)]
+    label = {"relations": "reading relations", "ways": "reading ways", "nodes": "reading points",
+             "store": "sorting and joining", "tiles": "cutting tiles"}
+    shown = {"pct": -1}
+
+    def progress(phase, fraction):
+        k = [n for n, _ in phases].index(phase)
+        pct = int(100 * (sum(w for _, w in phases[:k]) + phases[k][1] * max(0.0, min(1.0, fraction))))
+        if pct == shown["pct"]:
+            return
+        shown["pct"] = pct
+        el = time.time() - t0
+        left = el * (100 - pct) / pct if pct >= 3 else None
+        log(f"PROGRESS {pct}% of this build ({label[phase]} {int(100 * fraction)}%)"
+            + (f", roughly {int(left // 3600)} h {int(left % 3600 // 60):02d} min left" if left is not None else ""))
+
     head = osmpbf.header(src)
     stamp = head["replication_timestamp"] or int(src.stat().st_mtime)
     store_dir = out / "store"
@@ -888,7 +924,7 @@ def main(argv):
     else:
         if store_dir.exists():
             shutil.rmtree(store_dir)
-        cells, _ = collect_store(src, store_dir, log, a.processes, a.sea, layer)
+        cells, _ = collect_store(src, store_dir, log, a.processes, a.sea, layer, progress)
         np.save(store_dir / "cells.npy", np.array(sorted(cells), np.int32).reshape(-1, 2))
         done_marker.write_text(f"{src.name} {stamp}\n", encoding="utf-8")
     gc.collect()
@@ -938,6 +974,7 @@ def main(argv):
                 tiles.update(blobs)
             acc_bytes += size
             done += 1
+            progress("tiles", done / len(jobs))
             if time.time() - last_log > 60 or done == len(jobs):
                 last_log = time.time()
                 el = time.time() - t0

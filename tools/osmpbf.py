@@ -284,6 +284,32 @@ def _primitive(data):
     return strings, groups, gran, lat_off, lon_off
 
 
+# A long pass reports how far it is: PROGRESS(chunks done, chunks in all), called in the calling process.
+PROGRESS = None
+
+
+def apply_priority():
+    """High priority for this process when PWCA_MAPS_PRIORITY=high is in the environment (build_pack.py
+    --high-priority sets it; every worker process inherits the environment and calls this as it imports the
+    module, since Windows does not hand a raised priority down to a new process)."""
+    if os.environ.get("PWCA_MAPS_PRIORITY") != "high":
+        return
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        k32.GetCurrentProcess.restype = ctypes.c_void_p
+        k32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        k32.SetPriorityClass(k32.GetCurrentProcess(), 0x00000080)  # HIGH_PRIORITY_CLASS
+    else:
+        try:
+            os.nice(-5)
+        except OSError:
+            pass
+
+
+apply_priority()
+
+
 def _run_chunk(job):
     """Worker: one chunk of data blocks through `func`, which returns a list per block."""
     path, chunk, func, args = job
@@ -306,8 +332,10 @@ def map_blocks(path, func, args=(), processes=1):
     jobs = [(path, blocks[i:i + n], func, args) for i in range(0, len(blocks), n)]
     out = []
     with multiprocessing.get_context("spawn").Pool(processes) as pool:
-        for part in pool.imap(_run_chunk, jobs):
+        for i, part in enumerate(pool.imap(_run_chunk, jobs)):
             out.extend(part)
+            if PROGRESS:
+                PROGRESS(i + 1, len(jobs))
     return out
 
 
@@ -417,7 +445,10 @@ def imap_blocks(path, func, args=(), processes=1):
             yield _run_chunk(job)
         return
     with multiprocessing.get_context("spawn").Pool(processes) as pool:
-        yield from pool.imap(_run_chunk, jobs)
+        for i, part in enumerate(pool.imap(_run_chunk, jobs)):
+            yield part
+            if PROGRESS:
+                PROGRESS(i + 1, len(jobs))
 
 
 def _e7(nano):
