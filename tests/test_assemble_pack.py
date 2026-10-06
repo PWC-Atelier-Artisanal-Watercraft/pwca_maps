@@ -70,6 +70,23 @@ class Assemble(unittest.TestCase):
         self.assertEqual(json.loads((out / "SOURCES.json").read_text(encoding="utf-8"))["sources"][0]
                          ["replication_timestamp_utc"], "2026-09-24T20:21:20Z")
 
+    def test_files_of_later_kinds_are_counted(self):
+        """FORMAT.md 7.7: a pack holds at most 7 files of the kinds a PMT 1.1 reader skips (land cover, kind 6)."""
+        fmt = "PMT 1.2 (FORMAT.md 7.7): land cover, layer_kind 6"
+        land = [make_pack(self.t / f"land{i}", f"region-land-{i:02d}.pmt", "land_cover.pmt", fmt=fmt) for i in range(8)]
+        self.assertEqual(assemble_pack.layer_kind(land[0] / "region-land-00.pmt"), 6)
+        self.assertEqual(assemble_pack.layer_kind(self.roads / "region-roads.pmt"), 4)
+        out = self.t / "pack"
+        with self.assertRaises(PackError):
+            assemble_pack.assemble(out, [self.water, self.roads] + land, self.quiet)
+        self.assertFalse(out.exists() and any(out.iterdir()))
+        doc = assemble_pack.assemble(out, [self.water, self.roads] + land[:7], self.quiet)
+        self.assertEqual(len(doc["files"]), 9)
+        self.assertEqual((out / "region-land-06.pmt").read_bytes(), (VECTORS / "land_cover.pmt").read_bytes())
+        (self.t / "not.pmt").write_bytes(b"something else")
+        with self.assertRaises(PackError):
+            assemble_pack.layer_kind(self.t / "not.pmt")
+
     def test_refusals(self):
         out = self.t / "pack"
         with self.assertRaises(PackError):  # the same file name in two packs

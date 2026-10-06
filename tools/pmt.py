@@ -1,4 +1,4 @@
-"""Map tile files (PMT) version 1.1: the reference encoder, decoder and canonical dump. The format is FORMAT.md.
+"""Map tile files (PMT) version 1.2: the reference encoder, decoder and canonical dump. The format is FORMAT.md.
 
 Usage:
   python tools/pmt.py dump FILE      print the canonical dump (FORMAT.md section 9)
@@ -14,7 +14,7 @@ import zlib
 
 MAGIC = b"PMTF"
 VERSION_MAJOR = 1
-VERSION_MINOR = 1  # the newest minor this tool writes and reads; a base, water or zones file is still written as 1.0
+VERSION_MINOR = 2  # the newest minor this tool writes and reads; a base, water or zones file is still written as 1.0
 FIXED_HEADER = 64
 LEVEL_RECORD = 48
 INDEX_ENTRY = 16
@@ -36,9 +36,10 @@ GRID_BYTES = GRID_SIDE * GRID_SIDE // 4
 POLYGON, LINE, POINT = 1, 2, 3
 KIND_BASE, KIND_WATER, KIND_ZONES = 1, 2, 3
 KIND_ROADS, KIND_PLACES = 4, 5  # FORMAT 1.1 (sections 7.4 and 7.5)
+KIND_LAND = 6  # FORMAT 1.2 (section 7.7): land cover
 # The geometries a layer kind may hold (FORMAT.md section 6). A kind that is not here is not decoded at all.
 KIND_GEOMETRIES = {KIND_BASE: (POLYGON, LINE), KIND_WATER: (POLYGON, LINE), KIND_ZONES: (POLYGON, LINE),
-                   KIND_ROADS: (LINE,), KIND_PLACES: (POINT,)}
+                   KIND_ROADS: (LINE,), KIND_PLACES: (POINT,), KIND_LAND: (POLYGON,)}
 NAME_MAX = 127  # bytes of a point's name
 LEVEL_FLAG_GRID = 1
 ID_FIELDS = ("layer", "credit", "license", "source", "source_date", "build")
@@ -52,8 +53,9 @@ class PmtError(ValueError):
 
 
 def kind_minor(layer_kind):
-    """The minor version a file of this layer kind states: 1 for the kinds 1.1 added, else 0."""
-    return 1 if layer_kind in (KIND_ROADS, KIND_PLACES) else 0
+    """The minor version a file of this layer kind states: 2 for the kind 1.2 added, 1 for the kinds 1.1 added,
+    else 0."""
+    return 2 if layer_kind == KIND_LAND else 1 if layer_kind in (KIND_ROADS, KIND_PLACES) else 0
 
 
 def name_ok(raw):
@@ -449,7 +451,8 @@ class PmtFile:
         if magic != MAGIC or self.major != VERSION_MAJOR:
             raise PmtError("not a PMT version 1 file")
         if self.minor < kind_minor(self.kind):
-            raise PmtError(f"layer kind {self.kind} in a version 1.{self.minor} file (it needs 1.1)")
+            raise PmtError(f"layer kind {self.kind} in a version 1.{self.minor} file (it needs "
+                           f"1.{kind_minor(self.kind)})")
         if hsize % ALIGN or not FIXED_HEADER <= hsize <= MAX_HEADER or hsize > len(data):
             raise PmtError("bad header size")
         head = bytearray(data[:hsize])

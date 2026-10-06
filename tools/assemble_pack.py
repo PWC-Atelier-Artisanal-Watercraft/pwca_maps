@@ -22,6 +22,12 @@ from pathlib import Path
 TOOL = Path(__file__).resolve()
 TEXTS = ("LICENSE.txt", "ATTRIBUTION.txt")
 MAX_FILE = (1 << 31) - 1  # FORMAT.md: a file is under 2 GiB
+# FORMAT.md 7.7: a PMT 1.1 reader (the display firmware of 2026-10) opens the kinds up to places (5), skips a file of
+# a later kind, and stops reading a pack directory after 8 skipped files. With at most 7 such files in a pack it still
+# opens every file it knows, whatever order the card lists them in.
+KIND_OFFSET = 20
+LAST_1_1_KIND = 5
+LATER_KIND_FILES_MAX = 7
 
 
 class PackError(Exception):
@@ -55,6 +61,15 @@ def read_manifest(pack):
     return expected
 
 
+def layer_kind(path):
+    """The layer kind a .pmt file states in its fixed header (FORMAT.md section 3)."""
+    with open(path, "rb") as f:
+        head = f.read(KIND_OFFSET + 1)
+    if len(head) <= KIND_OFFSET or head[:4] != b"PMTF":
+        raise PackError(f"{path} is not a PMT file")
+    return head[KIND_OFFSET]
+
+
 def git_commit():
     try:
         return subprocess.run(["git", "-C", str(TOOL.parent), "rev-parse", "--short", "HEAD"], capture_output=True,
@@ -72,6 +87,7 @@ def assemble(out, packs, log=print):
         raise PackError(f"{out} exists and is not empty")
     checked = []  # (pack, manifest, SOURCES.json)
     names = {}
+    later = []  # the files of kinds a PMT 1.1 reader skips
     for pack in packs:
         manifest = read_manifest(pack)
         info = json.loads((pack / "SOURCES.json").read_text(encoding="utf-8"))
@@ -85,6 +101,8 @@ def assemble(out, packs, log=print):
                 raise PackError(f"{pack}: SOURCES.json does not describe {n} as the manifest does")
             if (pack / n).stat().st_size > MAX_FILE:
                 raise PackError(f"{pack / n} is over 2 GiB")
+            if layer_kind(pack / n) > LAST_1_1_KIND:
+                later.append(n)
             names[n.lower()] = pack
         for t in TEXTS:
             if t not in manifest:
@@ -93,6 +111,10 @@ def assemble(out, packs, log=print):
                 raise PackError(f"{t} differs between {checked[0][0]} and {pack}: the layers' terms must be the same")
         checked.append((pack, manifest, info, pmts))
         log(f"{pack}: manifest checked, {len(pmts)} layer file(s)")
+    if len(later) > LATER_KIND_FILES_MAX:
+        raise PackError(f"{len(later)} files of layer kinds above {LAST_1_1_KIND} ({', '.join(later)}): a pack holds at "
+                        f"most {LATER_KIND_FILES_MAX} (FORMAT.md 7.7: a display on PMT 1.1 firmware stops reading a pack "
+                        f"after 8 files it skips)")
 
     out.mkdir(parents=True, exist_ok=True)
     sources, files = [], {}

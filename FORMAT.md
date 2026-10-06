@@ -1,4 +1,4 @@
-# Map tile file format (PMT), version 1.1
+# Map tile file format (PMT), version 1.2
 
 This is the on-card and in-flash format of the offline map packs. It is published with the build tools as part of the
 build recipe (ODbL section 4.6). The files are plain, documented and unencrypted (ODbL section 4.7). The
@@ -12,11 +12,15 @@ Version 1.1 (2026-10-04) adds two layer kinds and nothing else: roads (kind 4, s
 7.5, with a new geometry: a point with a name). A base, water or zones file is unchanged and is still written as 1.0,
 byte for byte. A 1.0 reader draws a 1.1 pack's water and never draws the kinds it does not know.
 
+Version 1.2 (2026-10-06) adds one layer kind and nothing else: land cover (kind 6, section 7.7, polygons only). The
+files of every other kind are unchanged, byte for byte, and keep the version they had. A 1.1 reader opens a 1.2 pack's
+water, roads and places as before and skips the land-cover files (section 7.7 says how many a pack may hold for it).
+
 ## 1. Overview
 
 - A pack is a directory of `.pmt` files plus `ATTRIBUTION.txt`, `LICENSE.txt`, `SOURCES.json` and
   `MANIFEST.sha256` (see `README.md`).
-- Each `.pmt` file is self-describing: one **layer** (base, water, zones, roads or places), one or more **levels**,
+- Each `.pmt` file is self-describing: one **layer** (base, water, zones, roads, places or land cover), one or more **levels**,
   and for each
   level a sorted tile index and the tile data.
 - Tiles are Web Mercator tiles (x to the east, y to the south; zoom z has 2^z by 2^z tiles). A level is cut at one
@@ -48,13 +52,13 @@ the recommended order; readers must use the offsets and not assume an order.
 |---|---|---|---|
 | 0 | u8[4] | `magic` | `PMTF` (0x50 0x4D 0x54 0x46) |
 | 4 | u16 | `version_major` | 1. A reader rejects any other major version |
-| 6 | u16 | `version_minor` | 0 or 1. Minor versions only add optional content; a reader accepts any minor of its major. A file of layer kind 4 or 5 states 1 or higher; a reader refuses kind 4 or 5 in a file that states 0 |
+| 6 | u16 | `version_minor` | 0, 1 or 2. Minor versions only add optional content; a reader accepts any minor of its major. A file of layer kind 4 or 5 states 1 or higher; a reader refuses kind 4 or 5 in a file that states 0. A file of layer kind 6 states 2 or higher; a reader refuses kind 6 in a file that states 0 or 1 |
 | 8 | u32 | `header_size` | Bytes in the header block, a multiple of 4096, at most 16 MiB |
 | 12 | u32 | `header_crc` | CRC-32 of bytes [0, `header_size`) computed with this field as 0 |
 | 16 | u32 | `file_size` | Total file size; a shorter file is a truncated copy and is rejected |
-| 20 | u8 | `layer_kind` | 1 base, 2 water, 3 zones, 4 roads, 5 places (section 7). A reader never decodes or draws a kind it does not know |
+| 20 | u8 | `layer_kind` | 1 base, 2 water, 3 zones, 4 roads, 5 places, 6 land cover (section 7). A reader never decodes or draws a kind it does not know |
 | 21 | u8 | `level_count` | 1 to 8 |
-| 22 | u16 | `flags` | 0 in versions 1.0 and 1.1 |
+| 22 | u16 | `flags` | 0 in versions 1.0, 1.1 and 1.2 |
 | 24 | u32 | `build_time` | UTC seconds since 1970 when the file was built |
 | 28 | u32 | `data_time` | UTC seconds since 1970 of the source snapshot (OSM replication time, dataset date) |
 | 32 | u16 | `str_count` | Number of strings in the string table |
@@ -175,6 +179,7 @@ feature (point; version 1.1, layer kind 5 only):
   | 1 base, 2 water, 3 zones | polygon, line |
   | 4 roads | line only |
   | 5 places | point only |
+  | 6 land cover | polygon only |
 
   A feature of any other geometry makes the tile bad (it is skipped whole). Geometry 0 is never valid. A reader
   does not decode a tile of a kind that is not in this table.
@@ -200,7 +205,8 @@ feature (point; version 1.1, layer kind 5 only):
 - **Limits** (readers enforce them): 65535 features per tile, 65535 parts per feature, 1,048,576 points per tile
   (a point feature counts as one point).
 - **Draw order**: renderers draw polygon features in ascending class, then line features in ascending class. Roads
-  are the exception (section 7.4): the largest road is drawn last.
+  are the exception (section 7.4): the largest road is drawn last. Land cover (section 7.7) is seen as if drawn in
+  ascending class: where two areas overlap, the higher class shows.
 
 ## 7. Layers and classes
 
@@ -374,10 +380,51 @@ at the longest way's point. Names of one kind with the same text in one tile are
 the order a display with room for a few should take them: 6, 5, 7, 16, 1, 17, 18, 2, 24, 19, 25, 3, 20, 32, 26, 21,
 4, 27, 33, 22, 28; within a class the largest (people, area, length) first. `tools/names_at.py` lists a point's names.
 
+### 7.7 Land cover (`layer_kind` 6, version 1.2): what the land is (OpenStreetMap)
+
+Polygons only (section 6), no attribute records, no names, in files of their own beside a pack's other files. A
+renderer writes land cover only where its map is still plain land: never over water, a shoreline, a road or a path,
+whatever the order it draws its layers in. Where two areas overlap, the higher class shows, so a wood in a park in a
+housing area reads as all three.
+
+| Class | What | OSM tags |
+|---|---|---|
+| 1 | housing area | `landuse` = residential |
+| 2 | commerce | `landuse` = commercial, retail |
+| 3 | industry, railway land | `landuse` = industrial, railway |
+| 4 | parking | `amenity` = parking (not `parking` = underground or multi-storey) |
+| 5 | park or grass | `leisure` = park, garden, golf_course, pitch, playground, recreation_ground, nature_reserve, dog_park; `landuse` = grass, meadow, village_green, recreation_ground, cemetery |
+| 6 | wood | `natural` = wood, `landuse` = forest |
+| 7 | wetland | `natural` = wetland |
+| 8 | beach or sand | `natural` = beach, sand |
+
+Tags that give two classes give the higher one. The areas are closed ways and multipolygon relations of 100 m² or
+more. A renderer does not draw a class it does not know.
+
+The builder's levels (`tools/build_pack.py --layer land`), with the full water pack's zooms; nothing below zoom 8:
+
+| Level | Tile zoom | Serves | Bits | Buffer | Tolerance | Smallest area | Classes |
+|---|---|---|---|---|---|---|---|
+| L0 | 8 | 8 to 9 | 12 | 32 | 150 m | 100 ha | 1, 5, 6, 7 |
+| L1 | 10 | 10 to 11 | 12 | 32 | 40 m | 10 ha | 1 to 3, 5 to 8 |
+| L2 | 12 | 12 to 13 | 12 | 32 | 10 m | 1 ha | 1 to 3, 5 to 8 |
+| L3 | 12 | 14 | 16 | 512 | 4 m | 1,000 m² | all |
+| L4 | 14 | 15 to 16 | 14 | 256 | 2 m | all | all |
+
+- A coverage grid: 1 where the file has land-cover data in the cell, 0 elsewhere. The value 2 and `full_class` are
+  not used: an absent land-cover tile never draws anything. A tile wholly inside one area holds that area as the full
+  square (with the buffer); identical tiles are stored once.
+- Every tile is within the display's budget (12,000 features or parts, 100,000 points); a tile over it leaves out its
+  smallest areas first.
+- **Readers of version 1.1.** The display firmware of 2026-10 (0.4.0 to 0.4.3) skips a file of a kind it does not
+  know, and stops reading a pack directory after 8 skipped files. So a pack holds **at most 7 files of the kinds
+  above 5** (`tools/assemble_pack.py` refuses more), and such a display draws the pack's water, roads and names as
+  it did before.
+
 ## 8. Reader rules
 
 On open a reader checks: the magic and major version; that a file of layer kind 4 or 5 states minor version 1 or
-higher; `header_size` (a multiple of 4096, at most 16 MiB, not larger
+higher and a file of layer kind 6 minor version 2 or higher; `header_size` (a multiple of 4096, at most 16 MiB, not larger
 than the file); the header CRC; `file_size` against the real size; `level_count`; for each level the field ranges in
 section 4, that the page table, grid and index lie inside their regions, that the page table is strictly ascending
 and matches ceil(`entry_count` / 256); the string table (bounds, ascending offsets, a 0 byte ending each string); the

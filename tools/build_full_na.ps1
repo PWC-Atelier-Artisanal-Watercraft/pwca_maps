@@ -12,6 +12,9 @@
 #
 # It runs from a snapshot of the tools (a detached git worktree at -Commit), so the working tree can be edited while
 # the build runs.
+#
+# One more build, on its own: the land cover (housing, commerce, industry, parking, parks, woods, wetland, beaches):
+#   powershell -NoProfile -ExecutionPolicy Bypass -File C:\git\pwca_maps\tools\build_full_na.ps1 -Commit <commit> -Steps land
 param(
     [string]$Out = "out\na-full",
     [string]$Commit = "HEAD",
@@ -48,9 +51,12 @@ $runs = @{
     "lines" = @($extractPath, (Join-Path $outDir "lines"), "--layer", "roads", "--full", "--name", "north-america-roads")
     "water" = @($extractPath, (Join-Path $outDir "water"), "--full", "--sea", $seaPath, "--name", "north-america")
     "minor" = @($extractPath, (Join-Path $outDir "minor"), "--layer", "roads", "--minor", "--name", "north-america-minor")
+    # The land cover (FORMAT.md 7.7), a build of its own: -Steps land. It is not one of the default steps, so a run
+    # without -Steps builds what it always built.
+    "land" = @($extractPath, (Join-Path $outDir "land"), "--layer", "land", "--name", "north-america-land")
 }
 # Each build's rough share of the whole run, for the overall percent.
-$share = @{ "lines" = 20; "water" = 60; "minor" = 20 }
+$share = @{ "lines" = 20; "water" = 60; "minor" = 20; "land" = 40 }
 $total = 0
 foreach ($step in $Steps) { $total += $share[$step] }
 $doneShare = 0

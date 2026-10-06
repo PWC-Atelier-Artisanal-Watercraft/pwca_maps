@@ -287,6 +287,34 @@ def minor_only():
                 build_time=BUILD_TIME, data_time=DATA_TIME)
 
 
+LAND_STRINGS = ["osm-land", "© OpenStreetMap contributors", "ODbL 1.0", "OpenStreetMap", "2026-09-20",
+                "test-vectors"]
+
+
+def land_cover():
+    """A land-cover file (FORMAT.md 7.7: PMT 1.2, layer kind 6, polygons only) in water_minimal's tile: a housing area
+    that also lies over the lake, its island and the river (a display paints land cover only where the canvas is still
+    plain land); a park in it, right of the lake, and a wood over the park's lower half that runs on into the buffer
+    (the higher class wins); a beach in the south-west corner from inside the buffer; an area of a class no display
+    knows (not drawn: the housing under it shows). The tile east of it is one full square of wood. The coverage grid
+    marks the next zoom-8 cell to the east "full" (2), a value a land-cover file does not use: a display draws nothing
+    for an absent tile of a land-cover file, whatever the grid says."""
+    lo, hi = -32, 4128
+    housing = [[(200, 200), (3900, 200), (3900, 3900), (200, 3900)]]
+    park = [[(3200, 1200), (3800, 1200), (3800, 2600), (3200, 2600)]]
+    wood = [[(3500, 2000), (hi, 2000), (hi, 2800), (3500, 2800)]]
+    beach = [[(lo, 3300), (700, 3300), (700, hi), (lo, hi)]]
+    unknown = [[(3200, 300), (3800, 300), (3800, 900), (3200, 900)]]
+    full = [[(lo, lo), (hi, lo), (hi, hi), (lo, hi)]]
+    level = {"tile_zoom": 12, "zoom_min": 12, "zoom_max": 13, "coord_bits": 12, "buffer": 32, "tolerance_dm": 100,
+             "grid": {(62, 93): 1, (63, 93): 2},
+             "tiles": {(1000, 1500): [(POLYGON, 1, None, housing), (POLYGON, 5, None, park), (POLYGON, 6, None, wood),
+                                      (POLYGON, 8, None, beach), (POLYGON, 12, None, unknown)],
+                       (1001, 1500): [(POLYGON, 6, None, full)]}}
+    return dict(layer_kind=pmt.KIND_LAND, levels=[level], strings=LAND_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
 NAME_ORDER = [6, 5, 7, 16, 1, 17, 18, 2, 24, 19, 25, 3, 20, 32, 26, 21, 4, 27, 33, 22, 28]
 
 
@@ -385,7 +413,8 @@ def seam_rings_text():
 
 VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
            "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam,
-           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full, "names_full": names_full, "minor_only": minor_only, "water_lines": water_lines}
+           "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full, "names_full": names_full, "minor_only": minor_only, "water_lines": water_lines,
+           "land_cover": land_cover}
 
 
 def main(argv):

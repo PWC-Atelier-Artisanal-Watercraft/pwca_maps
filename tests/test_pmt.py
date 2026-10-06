@@ -35,11 +35,17 @@ class Vectors(unittest.TestCase):
         self.assertEqual(make_test_vectors.road_seam_lines_text(), (VECTORS / "roads_seam_lines.txt").read_bytes())
 
     def test_minor_version_by_kind(self):
-        """A base, water or zones file is written as 1.0 (unchanged bytes); roads and places as 1.1."""
+        """A base, water or zones file is written as 1.0 (unchanged bytes); roads and places as 1.1; land cover as
+        1.2."""
+        seen = set()
         for name, make in make_test_vectors.VECTORS.items():
             spec = make()
+            kind = spec["layer_kind"]
             minor = struct.unpack_from("<H", pmt.build_pmt(**spec), 6)[0]
-            self.assertEqual(minor, 1 if spec["layer_kind"] in (pmt.KIND_ROADS, pmt.KIND_PLACES) else 0, name)
+            want = 2 if kind == pmt.KIND_LAND else 1 if kind in (pmt.KIND_ROADS, pmt.KIND_PLACES) else 0
+            self.assertEqual(minor, want, name)
+            seen.add(want)
+        self.assertEqual(seen, {0, 1, 2})
 
     def test_round_trip_and_lookup(self):
         for name, make in make_test_vectors.VECTORS.items():
@@ -143,9 +149,15 @@ class Rejects(unittest.TestCase):
         self.assertEqual(pmt.decode_tile(point, 12, 32, 0, pmt.KIND_PLACES), [(POINT, 1, None, (10, 10, b"Ab"))])
         for blob, kind in ((polygon, pmt.KIND_ROADS), (point, pmt.KIND_ROADS), (point, pmt.KIND_WATER),
                            (point, pmt.KIND_ZONES), (point, pmt.KIND_BASE), (line, pmt.KIND_PLACES),
-                           (polygon, pmt.KIND_PLACES), (line, 0), (line, 6), (line, 255)):
+                           (polygon, pmt.KIND_PLACES), (line, 0), (line, 7), (line, 255),
+                           (line, pmt.KIND_LAND), (point, pmt.KIND_LAND)):  # 1.2: land cover holds polygons only
             with self.subTest(kind=kind, blob=blob), self.assertRaises(PmtError):
                 pmt.decode_tile(blob, 12, 32, 0, kind)
+        self.assertEqual(pmt.decode_tile(polygon, 12, 32, 0, pmt.KIND_LAND),
+                         [(POLYGON, 2, None, [[(0, 0), (1, 0), (1, 1)]])])
+        d = bytearray(pmt.build_pmt(**make_test_vectors.land_cover()))
+        struct.pack_into("<H", d, 6, 1)  # a land-cover file that says 1.1
+        self.assertRejected(fix_header_crc(d))
         d = bytearray(pmt.build_pmt(**make_test_vectors.roads()))
         struct.pack_into("<H", d, 6, 0)  # a roads file that says 1.0
         self.assertRejected(fix_header_crc(d))

@@ -1,7 +1,11 @@
 """Builds the detail water layer (PMT, FORMAT.md section 7.2) from an OpenStreetMap extract.
 
 Usage: python tools/build_pack.py <extract.osm.pbf> <out_dir> [--name NAME] [--sea water-polygons-split-4326.zip]
-       [--processes N] [--region-zoom Z] [--max-file-bytes B] [--low-priority]
+       [--processes N] [--region-zoom Z] [--max-file-bytes B] [--low-priority] [--layer water|roads|land] [--full]
+       [--minor]
+
+--layer roads builds the roads (FORMAT.md 7.4, 7.6), --layer land the land cover (FORMAT.md 7.7: housing, commerce
+and industry areas, parking, parks, woods, wetland, beaches) with the same passes and the same tile cutting.
 
 What goes in (README.md "Sources"):
 - water areas: natural=water, waterway=riverbank, landuse=reservoir, as closed ways and multipolygon relations;
@@ -94,6 +98,16 @@ LINE_LEVELS_FULL = [
 LOW_CHAINS = {1: 101, 2: 102}
 LOW_RANK = {25: 100, 24: 99, 1: 60, 2: 50}
 MINOR_LEVELS = [(14, 15, 16, 14, 256, 2.0, 0.0, None)]
+# Land cover (--layer land; layer_kind 6, PMT 1.2, FORMAT.md 7.7): the full water pack's five levels. A level leaves
+# out the areas under its smallest size (a few pixels there); its last field is the AREA classes it keeps (None: all).
+LAND_LEVELS = [
+    (8, 8, 9, 12, 32, 150.0, 1_000_000.0, {1, 5, 6, 7}),
+    (10, 10, 11, 12, 32, 40.0, 100_000.0, {1, 2, 3, 5, 6, 7, 8}),
+    (12, 12, 13, 12, 32, 10.0, 10_000.0, {1, 2, 3, 5, 6, 7, 8}),
+    (12, 14, 14, 16, 512, 4.0, 1_000.0, None),
+    (14, 15, 16, 14, 256, 2.0, 0.0, None),
+]
+MIN_AREA_LAND_M2 = 100.0  # the land-cover pack keeps every area from 100 m2 (its levels choose by zoom)
 NAME_EVERY_M = 1500.0  # names.tsv: a named waterway's label points are this far apart
 MIN_AREA_FULL_M2 = 50.0  # a full water pack keeps every water area from 50 m2 (its levels choose by zoom)
 MIN_AREA_M2 = 10_000.0
@@ -262,6 +276,48 @@ def border_relation(tags):
     return tags.get("boundary") == "administrative" and tags.get("admin_level") in ("2", "4")
 
 
+# ---- land cover (FORMAT.md 7.7) -------------------------------------------------------------------------------------
+
+# The higher class wins where two areas overlap (a wood in a park in a housing area), so the numbers are the order.
+LAND_RESIDENTIAL, LAND_COMMERCIAL, LAND_INDUSTRIAL, LAND_PARKING, LAND_PARK, LAND_FOREST, LAND_WETLAND, LAND_BEACH = (
+    1, 2, 3, 4, 5, 6, 7, 8)
+LAND_LEISURE = ("park", "garden", "golf_course", "pitch", "playground", "recreation_ground", "nature_reserve",
+                "dog_park")
+LAND_GRASS = ("grass", "meadow", "village_green", "recreation_ground", "cemetery")
+
+
+def land_class(tags):
+    """Polygon class of land-cover tags, or None. Tags that give two classes give the higher one."""
+    na, lu = tags.get("natural"), tags.get("landuse")
+    if na in ("beach", "sand"):
+        return LAND_BEACH
+    if na == "wetland":
+        return LAND_WETLAND
+    if na == "wood" or lu == "forest":
+        return LAND_FOREST
+    if tags.get("leisure") in LAND_LEISURE or lu in LAND_GRASS:
+        return LAND_PARK
+    if tags.get("amenity") == "parking":
+        return None if tags.get("parking") in ("underground", "multi-storey") else LAND_PARKING
+    if lu in ("industrial", "railway"):
+        return LAND_INDUSTRIAL
+    if lu in ("commercial", "retail"):
+        return LAND_COMMERCIAL
+    if lu == "residential":
+        return LAND_RESIDENTIAL
+    return None
+
+
+def land_kind(tags):
+    """(area class, None) of a way for the land-cover pack, or None."""
+    c = land_class(tags)
+    return None if c is None else (c, None)
+
+
+def land_relation(tags):
+    return tags.get("type") == "multipolygon" and land_class(tags) is not None
+
+
 def label_point(outer, inners=()):
     """A point inside an area for its label: the middle of the widest stretch of the area along the horizontal line
     through the middle of its largest outer ring. outer: [(lat, lon)] arrays in degrees; returns (lat, lon)."""
@@ -290,7 +346,8 @@ def line_length_m(la, lo):
 
 
 def rank_of(layer):
-    return {"water-full": LINE_RANK_WATER, "lines-full": LINE_RANK, "minor-full": LINE_RANK}.get(layer)
+    return {"water-full": LINE_RANK_WATER, "lines-full": LINE_RANK, "minor-full": LINE_RANK,
+            "land-full": LINE_RANK}.get(layer)  # land cover has no lines: the rank only says "a full pack"
 
 
 def is_full(layer):
@@ -301,9 +358,17 @@ def is_lines(layer):
     return layer in ("roads", "lines-full", "minor-full")
 
 
+def is_land(layer):
+    return layer == "land-full"
+
+
+def kind_of(layer):
+    return pmt.KIND_LAND if is_land(layer) else pmt.KIND_ROADS if is_lines(layer) else pmt.KIND_WATER
+
+
 def levels_of(layer):
     return {"roads": ROAD_LEVELS, "water-full": LEVELS_FULL, "lines-full": LINE_LEVELS_FULL,
-            "minor-full": MINOR_LEVELS}.get(layer, LEVELS)
+            "minor-full": MINOR_LEVELS, "land-full": LAND_LEVELS}.get(layer, LEVELS)
 
 
 # ---- rings from relations -------------------------------------------------------------------------------------------
@@ -464,6 +529,14 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water", prog
         log(f"relations: {member_ids.size} member ways of country and state borders ({time.time() - t0:.0f} s)")
         passing("ways")
         ws = osmpbf.ways_parallel(path, line_kind_full, member_ids, processes)
+    elif is_land(layer):
+        sea = None
+        rels = osmpbf.relations_parallel(path, land_relation, processes)
+        member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
+        log(f"relations: {len(rels)} land-cover multipolygons, {member_ids.size} member ways "
+            f"({time.time() - t0:.0f} s)")
+        passing("ways")
+        ws = osmpbf.ways_parallel(path, land_kind, member_ids, processes)
     elif full:
         rels = osmpbf.relations_parallel(path, water_relation_full, processes)
         member_ids = np.unique(np.array([m for _, _, ms in rels for typ, m, _ in ms if typ == 1], np.int64))
@@ -512,7 +585,8 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water", prog
             stats["sea"] += 1
         log(f"sea: {stats['sea']} water polygons from {Path(sea).name} ({time.time() - t0:.0f} s)")
     deg = featurestore.degrees
-    min_area = MIN_AREA_FULL_M2 if full else MIN_AREA_M2
+    min_area = MIN_AREA_LAND_M2 if is_land(layer) else MIN_AREA_FULL_M2 if full else MIN_AREA_M2
+    classify = land_class if is_land(layer) else area_class
     if is_lines(layer):
         # Each class's ways joined end to end where two of them meet, then stored as lines (join_lines). The full
         # pack's small classes (service roads, tracks, paths and the like) are stored way by way.
@@ -575,7 +649,7 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water", prog
     way_by_id = {ws[i][0]: ws[i][2] for i in np.flatnonzero(is_member).tolist()}
     del member_ids, is_member
     for rid, tags, members in rels:
-        cls = area_class(tags)
+        cls = classify(tags)
         outer_refs = [way_by_id[m] for t, m, role in members if t == 1 and role in ("outer", "") and m in way_by_id]
         inner_refs = [way_by_id[m] for t, m, role in members if t == 1 and role == "inner" and m in way_by_id]
         outers, u1 = assemble_rings(outer_refs)
@@ -611,7 +685,8 @@ def collect_store(path, store_dir, log, processes, sea=None, layer="water", prog
     lines.close()
     if names:
         names.close()
-    log(f"features: {n_poly} water areas (with the sea pieces), {n_line} river/canal lines; dropped {stats['small']} "
+    what = "land-cover areas" if is_land(layer) else "water areas (with the sea pieces)"
+    log(f"features: {n_poly} {what}, {n_line} river/canal lines; dropped {stats['small']} "
         f"under {min_area:.0f} m2, {stats['unclosed']} unclosed ways, {stats['orphan_holes']} holes outside their outers; "
         f"{n_points} points in the store ({time.time() - t0:.0f} s)")
     return cells, stats
@@ -652,13 +727,14 @@ def full_square(bits, buf):
     return [(-buf, -buf), (side + buf, -buf), (side + buf, side + buf), (-buf, side + buf)]
 
 
-def apply_coverage(tiles, cells, tz, bits, buf):
+def apply_coverage(tiles, cells, tz, bits, buf, sea_cls=1):
     """The coverage grid for a level, and its tiles without the open sea: in a zoom-8 cell where most tiles are only
     the full square of sea, the cell defaults to full (2), those tiles are dropped and the cell's land tiles are stored
-    as empty tiles; elsewhere the cell is 1 (absent = empty)."""
+    as empty tiles; elsewhere the cell is 1 (absent = empty). sea_cls None: a layer without a sea (land cover): every
+    cell is 1 and every tile is stored."""
     sq = full_square(bits, buf)
-    is_open_sea = lambda feats: (len(feats) == 1 and feats[0][0] == pmt.POLYGON and feats[0][1] == 1
-                                 and len(feats[0][3]) == 1 and feats[0][3][0] == sq)
+    is_open_sea = lambda feats: (sea_cls is not None and len(feats) == 1 and feats[0][0] == pmt.POLYGON
+                                 and feats[0][1] == sea_cls and len(feats[0][3]) == 1 and feats[0][3][0] == sq)
     shift = tz - 8
     per_cell = {}
     for key, feats in tiles.items():
@@ -684,13 +760,16 @@ def apply_coverage(tiles, cells, tz, bits, buf):
     return grid, out
 
 
-def level_tiles(polys, lines, level, region=None):
+def level_tiles(polys, lines, level, region=None, land=False):
     """One level's tiles {(x, y): features} from polygons [(class, [(lat, lon, outer)])] and lines
-    [(class, lat, lon)], drawn in that order; with region = (rz, rx, ry), only that quadtree node's tiles."""
+    [(class, lat, lon)], drawn in that order; with region = (rz, rx, ry), only that quadtree node's tiles. land: a
+    land-cover level: its last field names the AREA classes it keeps, and no class is spared its smallest size."""
     tz, zmin, zmax, bits, buf, tol_m, min_m2, line_classes = level
     wb = tz + bits
     tiles = {}
     for cls, rings in polys:
+        if land and line_classes is not None and cls not in line_classes:
+            continue
         world = []
         upm = 0.0
         for la, lo, outer in rings:
@@ -704,7 +783,7 @@ def level_tiles(polys, lines, level, region=None):
         if not world or not any(pg.area2(x, y) > 0 for x, y in world):
             continue
         # The level's smallest inland area (the sea, class 1, is never left out): outer rings minus holes.
-        if min_m2 and cls != 1 and sum(pg.area2(x, y) for x, y in world) / 2 < min_m2 * upm * upm:
+        if min_m2 and (land or cls != 1) and sum(pg.area2(x, y) for x, y in world) / 2 < min_m2 * upm * upm:
             continue
         for key, parts in pg.cut_polygon(world, tz, bits, buf, region).items():
             tiles.setdefault(key, []).append(
@@ -757,11 +836,12 @@ def _poly_area(feature):
     return abs(sum(x0 * y1 - x1 * y0 for part in feature[3] for (x0, y0), (x1, y1) in zip(part, part[1:] + part[:1])))
 
 
-def fit_tile(feats, rank=None):
+def fit_tile(feats, rank=None, sea_cls=1):
     """A tile within TILE_FEATURE_BUDGET features and parts: the display decodes a tile into fixed scratch (16,384
     features or parts, pwca_argos map_view.c) and skips a bigger one whole. Over the budget, the shortest lines go first
     (2026-10-03: two zoom-8 tiles of the Yukon-Kuskokwim delta held about 18,000 river pieces of 3 points or fewer).
-    The same for TILE_POINT_BUDGET points (the display's 131,072). Returns (features kept, lines dropped)."""
+    The same for TILE_POINT_BUDGET points (the display's 131,072). Returns (features kept, lines dropped). sea_cls: the
+    area class that is never left out (None: a layer without a sea, land cover)."""
     parts = sum(len(f[3]) for f in feats)
     points = sum(len(p) for f in feats for p in f[3])
     fits = lambda n: n <= TILE_FEATURE_BUDGET and parts <= TILE_FEATURE_BUDGET and points <= TILE_POINT_BUDGET
@@ -774,7 +854,7 @@ def fit_tile(feats, rank=None):
     else:
         order.sort(key=lambda i: _line_length(feats[i]))
     if rank:  # then the smallest areas (never the sea)
-        order += sorted((i for i, f in enumerate(feats) if f[0] == pmt.POLYGON and f[1] != 1),
+        order += sorted((i for i, f in enumerate(feats) if f[0] == pmt.POLYGON and f[1] != sea_cls),
                         key=lambda i: _poly_area(feats[i]))
     for i in order:
         if fits(n - len(drop)):
@@ -820,15 +900,17 @@ def region_job(job):
         if tz < 8:  # cut once from the whole store (low_level_tiles)
             out.append(({}, {}))
             continue
-        grid, tiles = apply_coverage(level_tiles(polys, lines, level, region), cells, tz, bits, buf)
+        land = is_land(layer)
+        sea_cls = None if land else 1
+        grid, tiles = apply_coverage(level_tiles(polys, lines, level, region, land), cells, tz, bits, buf, sea_cls)
         enc = {}
         for key, feats in tiles.items():
-            feats, dropped = fit_tile(feats, rank_of(layer))
+            feats, dropped = fit_tile(feats, rank_of(layer), sea_cls)
             if dropped:
                 print(f"tile z{tz} {key[0]},{key[1]}: {dropped} "
                       f"{'least features' if is_full(layer) else 'shortest lines'} left out (over the display's "
                       f"{TILE_FEATURE_BUDGET} features or parts)", flush=True)
-            enc[key] = pmt.encode_tile(feats, bits, buf, pmt.KIND_ROADS if is_lines(layer) else pmt.KIND_WATER)
+            enc[key] = pmt.encode_tile(feats, bits, buf, kind_of(layer))
         out.append((grid, enc))
     return region, out, len(polys) + len(lines)
 
@@ -869,8 +951,9 @@ def main(argv):
     ap.add_argument("--keep-store", action="store_true", help="keep the feature store (<out_dir>/store)")
     ap.add_argument("--reuse-store", action="store_true",
                     help="skip the passes over the extract: cut from a complete store kept by an earlier run")
-    ap.add_argument("--layer", choices=("water", "roads"), default="water",
-                    help="water (layer_kind 2, written as PMT 1.0), or roads (layer_kind 4, written as PMT 1.1)")
+    ap.add_argument("--layer", choices=("water", "roads", "land"), default="water",
+                    help="water (layer_kind 2, written as PMT 1.0), roads (layer_kind 4, written as PMT 1.1), or land "
+                         "(land cover: layer_kind 6, written as PMT 1.2, FORMAT.md 7.7)")
     ap.add_argument("--minor", action="store_true",
                     help="with --layer roads: the minor ways' file (service roads, tracks, paths), zoom 15 and up")
     ap.add_argument("--full", action="store_true",
@@ -884,7 +967,11 @@ def main(argv):
     if a.high_priority:
         os.environ["PWCA_MAPS_PRIORITY"] = "high"  # the worker processes read it as they start
         osmpbf.apply_priority()
-    layer = {"water": "water-full", "roads": "lines-full"}[a.layer] if a.full else a.layer
+    layer = {"water": "water-full", "roads": "lines-full"}[a.layer] if a.full and a.layer != "land" else a.layer
+    if a.layer == "land":
+        if a.sea:
+            ap.error("--sea goes with the water layer")
+        layer = "land-full"  # the land-cover pack has one form
     if a.minor:
         if a.layer != "roads" or a.full:
             ap.error("--minor goes with --layer roads, without --full")
@@ -935,7 +1022,9 @@ def main(argv):
     date = time.strftime("%Y-%m-%d", time.gmtime(stamp))
     commit = git_commit()
     roads = is_lines(layer)
-    strings = ["osm-roads" if roads else "osm-water", CREDIT, "ODbL 1.0", "OpenStreetMap", date, f"pwca_maps {commit}"]
+    land = is_land(layer)
+    strings = ["osm-land" if land else "osm-roads" if roads else "osm-water", CREDIT, "ODbL 1.0", "OpenStreetMap", date,
+               f"pwca_maps {commit}"]
     files = []  # (path, bytes, sha256, tiles per level)
     lv_table = levels_of(layer)
 
@@ -946,9 +1035,9 @@ def main(argv):
         levels = []
         for (grid, tiles), (tz, zmin, zmax, bits, buf, tol, _min_m2, _cls) in zip(acc, lv_table):
             levels.append({"tile_zoom": tz, "zoom_min": zmin, "zoom_max": zmax, "coord_bits": bits, "buffer": buf,
-                           "tolerance_dm": int(tol * 10), "full_class": 0 if roads else 1,
+                           "tolerance_dm": int(tol * 10), "full_class": 0 if roads or land else 1,
                            "grid": grid if tz >= 8 else None, "tiles": tiles})
-        data = pmt.build_pmt(layer_kind=pmt.KIND_ROADS if roads else pmt.KIND_WATER, levels=levels, strings=strings,
+        data = pmt.build_pmt(layer_kind=kind_of(layer), levels=levels, strings=strings,
                              ids=dict(zip(pmt.ID_FIELDS, range(6))), build_time=int(time.time()), data_time=stamp)
         path = out / f"{name}.part{len(files) + 1}.pmt"
         path.write_bytes(data)
@@ -1006,7 +1095,8 @@ def main(argv):
         sources.append({"name": "OpenStreetMap water polygons (osmdata.openstreetmap.de)", "license": "ODbL 1.0",
                         "file": Path(a.sea).name, "sha256": sha256(a.sea)})
     info = {
-        "format": "PMT 1.1 (FORMAT.md): roads, layer_kind 4" if roads else "PMT 1.0 (FORMAT.md)",
+        "format": "PMT 1.2 (FORMAT.md 7.7): land cover, layer_kind 6" if land
+        else "PMT 1.1 (FORMAT.md): roads, layer_kind 4" if roads else "PMT 1.0 (FORMAT.md)",
         "tool": {"repository": "https://github.com/PWC-Atelier-Artisanal-Watercraft/pwca_maps", "commit": commit},
         "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "sources": sources,
