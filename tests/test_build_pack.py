@@ -130,6 +130,12 @@ class Land(unittest.TestCase):
         levels = build_pack.levels_of("land-full")
         self.assertEqual([(lv[0], lv[1], lv[2], lv[3], lv[4]) for lv in levels],
                          [(lv[0], lv[1], lv[2], lv[3], lv[4]) for lv in build_pack.levels_of("water-full")])
+        # A level holds exactly the classes the display draws at one of its zooms (Branding's style, 2026-10-06: the
+        # first zoom of each class).
+        first_zoom = {1: 8, 2: 11, 3: 11, 4: 14, 5: 10, 6: 8, 7: 8, 8: 11}
+        for lv in levels:
+            kept = lv[7] if lv[7] is not None else set(first_zoom)
+            self.assertEqual(kept, {c for c, z in first_zoom.items() if z <= lv[2]}, lv)
 
 
 if __name__ == "__main__":

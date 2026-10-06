@@ -99,9 +99,12 @@ LOW_CHAINS = {1: 101, 2: 102}
 LOW_RANK = {25: 100, 24: 99, 1: 60, 2: 50}
 MINOR_LEVELS = [(14, 15, 16, 14, 256, 2.0, 0.0, None)]
 # Land cover (--layer land; layer_kind 6, PMT 1.2, FORMAT.md 7.7): the full water pack's five levels. A level leaves
-# out the areas under its smallest size (a few pixels there); its last field is the AREA classes it keeps (None: all).
+# out the areas under its smallest size (a few pixels there); its last field is the AREA classes it keeps (None: all):
+# the classes a display draws at one of the level's zooms (Branding's style of 2026-10-06, pwca_logos
+# ux/PANOPTES_MAP_NEW_LAYERS_STYLE.md section 1: housing, wood and wetland from zoom 8, park from 10, commerce,
+# industry and beach from 11, parking from 14).
 LAND_LEVELS = [
-    (8, 8, 9, 12, 32, 150.0, 1_000_000.0, {1, 5, 6, 7}),
+    (8, 8, 9, 12, 32, 150.0, 1_000_000.0, {1, 6, 7}),
     (10, 10, 11, 12, 32, 40.0, 100_000.0, {1, 2, 3, 5, 6, 7, 8}),
     (12, 12, 13, 12, 32, 10.0, 10_000.0, {1, 2, 3, 5, 6, 7, 8}),
     (12, 14, 14, 16, 512, 4.0, 1_000.0, None),

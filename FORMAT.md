@@ -405,12 +405,15 @@ The builder's levels (`tools/build_pack.py --layer land`), with the full water p
 
 | Level | Tile zoom | Serves | Bits | Buffer | Tolerance | Smallest area | Classes |
 |---|---|---|---|---|---|---|---|
-| L0 | 8 | 8 to 9 | 12 | 32 | 150 m | 100 ha | 1, 5, 6, 7 |
+| L0 | 8 | 8 to 9 | 12 | 32 | 150 m | 100 ha | 1, 6, 7 |
 | L1 | 10 | 10 to 11 | 12 | 32 | 40 m | 10 ha | 1 to 3, 5 to 8 |
 | L2 | 12 | 12 to 13 | 12 | 32 | 10 m | 1 ha | 1 to 3, 5 to 8 |
 | L3 | 12 | 14 | 16 | 512 | 4 m | 1,000 m² | all |
 | L4 | 14 | 15 to 16 | 14 | 256 | 2 m | all | all |
 
+- A level holds the classes a display draws at one of its zooms. The display's style (Branding, pwca_logos
+  `ux/PANOPTES_MAP_NEW_LAYERS_STYLE.md`, 2026-10-06) draws housing, wood and wetland from zoom 8, park from 10,
+  commerce, industry and beach from 11, parking from 14.
 - A coverage grid: 1 where the file has land-cover data in the cell, 0 elsewhere. The value 2 and `full_class` are
   not used: an absent land-cover tile never draws anything. A tile wholly inside one area holds that area as the full
   square (with the buffer); identical tiles are stored once.
