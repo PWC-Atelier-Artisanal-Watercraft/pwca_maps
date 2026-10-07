@@ -1,4 +1,5 @@
-"""Map tile files (PMT) version 1.1: the reference encoder, decoder and canonical dump. The format is FORMAT.md.
+"""Map tile files (PMT) version 1.3: the reference encoder, decoder and canonical dump. The format is FORMAT.md and, for
+the layer kinds 7 and 8 of version 1.3, FORMAT-1.3-SYMBOLS-STREET-NAMES.md.
 
 Usage:
   python tools/pmt.py dump FILE      print the canonical dump (FORMAT.md section 9)
@@ -14,7 +15,7 @@ import zlib
 
 MAGIC = b"PMTF"
 VERSION_MAJOR = 1
-VERSION_MINOR = 1  # the newest minor this tool writes and reads; a base, water or zones file is still written as 1.0
+VERSION_MINOR = 3  # the newest minor this tool writes and reads; a base, water or zones file is still written as 1.0
 FIXED_HEADER = 64
 LEVEL_RECORD = 48
 INDEX_ENTRY = 16
@@ -37,9 +38,12 @@ POLYGON, LINE, POINT = 1, 2, 3
 KIND_BASE, KIND_WATER, KIND_ZONES = 1, 2, 3
 KIND_ROADS, KIND_PLACES = 4, 5  # FORMAT 1.1 (sections 7.4 and 7.5)
 # The geometries a layer kind may hold (FORMAT.md section 6). A kind that is not here is not decoded at all.
+# FORMAT 1.3 (FORMAT-1.3-SYMBOLS-STREET-NAMES.md): symbols (points with a class and an optional name) and street names
+# (lines that carry their name). Kind 6 and minor version 2 are held for the land cover work and are not defined here.
+KIND_SYMBOLS, KIND_STREETS = 7, 8
 KIND_GEOMETRIES = {KIND_BASE: (POLYGON, LINE), KIND_WATER: (POLYGON, LINE), KIND_ZONES: (POLYGON, LINE),
-                   KIND_ROADS: (LINE,), KIND_PLACES: (POINT,)}
-NAME_MAX = 127  # bytes of a point's name
+                   KIND_ROADS: (LINE,), KIND_PLACES: (POINT,), KIND_SYMBOLS: (POINT,), KIND_STREETS: (LINE,)}
+NAME_MAX = 127  # bytes of a name (a point's, a named line's)
 LEVEL_FLAG_GRID = 1
 ID_FIELDS = ("layer", "credit", "license", "source", "source_date", "build")
 
@@ -52,7 +56,10 @@ class PmtError(ValueError):
 
 
 def kind_minor(layer_kind):
-    """The minor version a file of this layer kind states: 1 for the kinds 1.1 added, else 0."""
+    """The minor version a file of this layer kind states: 1 for the kinds 1.1 added, 3 for the kinds 1.3 added,
+    else 0."""
+    if layer_kind in (KIND_SYMBOLS, KIND_STREETS):
+        return 3
     return 1 if layer_kind in (KIND_ROADS, KIND_PLACES) else 0
 
 
@@ -129,7 +136,8 @@ def get_varint(buf, pos, end):
 
 def encode_tile(features, coord_bits, buffer, layer_kind=KIND_WATER):
     """features: a list of (geometry, class, attr or None, parts); parts: a list of lists of (x, y) tile units. A
-    point (layer kind 5 only) is (POINT, class, None, (x, y, name)) with the name as str or bytes."""
+    point (layer kinds 5 and 7) is (POINT, class, None, (x, y, name)) with the name as str or bytes; in kind 7 the name
+    may be empty. A named line (layer kind 8) is (LINE, class, None, (name, [(x, y), ...]))."""
     if len(features) > MAX_FEATURES:
         raise PmtError("too many features")
     allowed = KIND_GEOMETRIES.get(layer_kind, ())
@@ -142,7 +150,7 @@ def encode_tile(features, coord_bits, buffer, layer_kind=KIND_WATER):
         if geom == POINT:
             x, y, name = parts
             name = name.encode("utf-8") if isinstance(name, str) else bytes(name)
-            if attr is not None or not name_ok(name):
+            if attr is not None or not (name_ok(name) or (layer_kind == KIND_SYMBOLS and not name)):
                 raise PmtError(f"bad point feature (an attribute, or the name {name!r})")
             if not (lo <= x <= hi and lo <= y <= hi):
                 raise PmtError(f"point ({x}, {y}) outside the buffered tile")
@@ -155,6 +163,25 @@ def encode_tile(features, coord_bits, buffer, layer_kind=KIND_WATER):
             out.append(len(name))
             out += name
             px, py = x, y
+            continue
+        if layer_kind == KIND_STREETS:
+            name, part = parts
+            name = name.encode("utf-8") if isinstance(name, str) else bytes(name)
+            if attr is not None or not name_ok(name) or len(part) < 2:
+                raise PmtError(f"bad named line (an attribute, under 2 points, or the name {name!r})")
+            points += len(part)
+            if points > MAX_POINTS:
+                raise PmtError("too many points in the tile")
+            put_varint(out, geom | (cls << 3))
+            out.append(len(name))
+            out += name
+            put_varint(out, len(part))
+            for x, y in part:
+                if not (lo <= x <= hi and lo <= y <= hi):
+                    raise PmtError(f"point ({x}, {y}) outside the buffered tile")
+                put_varint(out, zigzag(x - px))
+                put_varint(out, zigzag(y - py))
+                px, py = x, y
             continue
         if not 1 <= len(parts) <= MAX_PARTS:
             raise PmtError("bad part count")
@@ -183,7 +210,8 @@ def encode_tile(features, coord_bits, buffer, layer_kind=KIND_WATER):
 def decode_tile(blob, coord_bits, buffer, attr_count, layer_kind=KIND_WATER):
     """The inverse of encode_tile, with every check of FORMAT.md section 6. A point comes back as (POINT, class,
     None, (x, y, name bytes)); a point whose name fails name_ok comes back with the name None (a reader skips that
-    label and keeps the tile)."""
+    label and keeps the tile); a symbol (kind 7) without a name comes back with the name b"". A named line (kind 8)
+    comes back as (LINE, class, None, (name bytes or None, [(x, y), ...]))."""
     allowed = KIND_GEOMETRIES.get(layer_kind)
     if not allowed:
         raise PmtError(f"layer kind {layer_kind} is not one this reader decodes")
@@ -214,11 +242,39 @@ def decode_tile(blob, coord_bits, buffer, attr_count, layer_kind=KIND_WATER):
                 raise PmtError("a point without its name")
             n = blob[pos]
             pos += 1
+            if not (0 if layer_kind == KIND_SYMBOLS else 1) <= n <= NAME_MAX or n > end - pos:
+                raise PmtError("a name of length 0, over the limit or past the tile's end")
+            name = bytes(blob[pos:pos + n])
+            pos += n
+            features.append((POINT, cls, None, (px, py, name if not n or name_ok(name) else None)))
+            continue
+        if layer_kind == KIND_STREETS:
+            if has_attr:
+                raise PmtError("a named line with an attribute")
+            if pos >= end:
+                raise PmtError("a named line without its name")
+            n = blob[pos]
+            pos += 1
             if not 1 <= n <= NAME_MAX or n > end - pos:
                 raise PmtError("a name of length 0, over the limit or past the tile's end")
             name = bytes(blob[pos:pos + n])
             pos += n
-            features.append((POINT, cls, None, (px, py, name if name_ok(name) else None)))
+            n, pos = get_varint(blob, pos, end)
+            if n < 2:
+                raise PmtError("too few points in a named line")
+            points += n
+            if points > MAX_POINTS:
+                raise PmtError("too many points in the tile")
+            part = []
+            for _ in range(n):
+                u, pos = get_varint(blob, pos, end)
+                v, pos = get_varint(blob, pos, end)
+                px += unzigzag(u)
+                py += unzigzag(v)
+                if not (lo <= px <= hi and lo <= py <= hi):
+                    raise PmtError(f"point ({px}, {py}) outside the buffered tile")
+                part.append((px, py))
+            features.append((LINE, cls, None, (name if name_ok(name) else None, part)))
             continue
         attr = None
         if has_attr:
@@ -449,7 +505,8 @@ class PmtFile:
         if magic != MAGIC or self.major != VERSION_MAJOR:
             raise PmtError("not a PMT version 1 file")
         if self.minor < kind_minor(self.kind):
-            raise PmtError(f"layer kind {self.kind} in a version 1.{self.minor} file (it needs 1.1)")
+            raise PmtError(f"layer kind {self.kind} in a version 1.{self.minor} file (it needs "
+                           f"1.{kind_minor(self.kind)})")
         if hsize % ALIGN or not FIXED_HEADER <= hsize <= MAX_HEADER or hsize > len(data):
             raise PmtError("bad header size")
         head = bytearray(data[:hsize])
@@ -636,6 +693,12 @@ def dump(pf):
                     px, py, name = parts
                     lines.append(f"feature point class={cls} {px},{py} name=".encode("ascii")
                                  + (quote(name) if name is not None else b"-"))
+                    continue
+                if pf.kind == KIND_STREETS:
+                    name, part = parts
+                    lines.append(f"feature nline class={cls} name=".encode("ascii")
+                                 + (quote(name) if name is not None else b"-"))
+                    w(f"part {len(part)} " + " ".join(f"{x},{y}" for x, y in part))
                     continue
                 w(f"feature {'polygon' if geom == POLYGON else 'line'} class={cls} "
                   f"attr={'-' if attr is None else attr} parts={len(parts)}")

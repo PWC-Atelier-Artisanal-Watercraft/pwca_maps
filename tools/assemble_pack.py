@@ -105,8 +105,10 @@ def assemble(out, packs, log=print):
             shutil.copyfile(pack / n, out / n)
             if sha256(out / n) != manifest[n]:
                 raise PackError(f"{out / n}: the copy's sha256 is not the manifest's")
-            files[n] = dict(info["files"][n], format=info.get("format"), tool=info.get("tool"),
-                            built_utc=info.get("built_utc"))
+            # A file's own format, tool and build time stand (a pack that was itself assembled, or one that holds
+            # layers of two kinds); the pack's are for a file that states none.
+            files[n] = {"format": info.get("format"), "tool": info.get("tool"), "built_utc": info.get("built_utc"),
+                        **info["files"][n]}
     for t in TEXTS:
         shutil.copyfile(checked[0][0] / t, out / t)
     doc = {

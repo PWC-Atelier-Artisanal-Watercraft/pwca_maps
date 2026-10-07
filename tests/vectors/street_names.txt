@@ -1,0 +1,35 @@
+PMTF 1.3 kind=8 levels=2 strings=6 attrs=0 build_time=1790208000 data_time=1790121600
+ids layer=0 credit=1 license=2 source=3 source_date=4 build=5
+string 0 "osm-street-names"
+string 1 "© OpenStreetMap contributors"
+string 2 "ODbL 1.0"
+string 3 "OpenStreetMap"
+string 4 "2026-09-20"
+string 5 "test-vectors"
+level 0 tz=12 zoom=14-14 bits=16 buffer=0 flags=1 full_class=0 keys=2541772-2541772 entries=1 tol_dm=240
+grid 0 v0=65535 v1=1 v2=0 v3=0
+level 1 tz=14 zoom=15-16 bits=14 buffer=0 flags=1 full_class=0 keys=40668352-40668353 entries=2 tol_dm=60
+grid 1 v0=65535 v1=1 v2=0 v3=0
+tile 0 650 1450 len=29 crc=68f3e92c
+feature nline class=1 name="Lakeshore Freeway"
+part 2 0,30000 65536,31000
+tile 1 2600 5800 len=221 crc=69020f4a
+feature nline class=1 name="Lakeshore Freeway"
+part 2 0,7500 16384,7750
+feature nline class=2 name="Old Trunk Highway"
+part 2 200,200 4000,3900
+feature nline class=3 name="Main Street"
+part 2 8000,0 8000,16384
+feature nline class=4 name="County Road 5"
+part 2 100,12000 9000,12100
+feature nline class=5 name="Rue de l'Église"
+part 3 9000,12100 12000,15000 16384,15100
+feature nline class=6 name="North Washington Avenue"
+part 2 2000,5000 7000,5050
+feature nline class=6 name="North Washington Avenue"
+part 2 9000,5100 16384,5200
+feature nline class=7 name="Unknown 7"
+part 2 1000,1000 1500,1000
+tile 1 2601 5800 len=33 crc=e114d984
+feature nline class=6 name="North Washington Avenue"
+part 2 0,5200 6000,5300

@@ -35,11 +35,14 @@ class Vectors(unittest.TestCase):
         self.assertEqual(make_test_vectors.road_seam_lines_text(), (VECTORS / "roads_seam_lines.txt").read_bytes())
 
     def test_minor_version_by_kind(self):
-        """A base, water or zones file is written as 1.0 (unchanged bytes); roads and places as 1.1."""
+        """A base, water or zones file is written as 1.0 (unchanged bytes); roads and places as 1.1; symbols and
+        street names as 1.3."""
         for name, make in make_test_vectors.VECTORS.items():
             spec = make()
             minor = struct.unpack_from("<H", pmt.build_pmt(**spec), 6)[0]
-            self.assertEqual(minor, 1 if spec["layer_kind"] in (pmt.KIND_ROADS, pmt.KIND_PLACES) else 0, name)
+            kind = spec["layer_kind"]
+            self.assertEqual(minor, 3 if kind in (pmt.KIND_SYMBOLS, pmt.KIND_STREETS)
+                             else 1 if kind in (pmt.KIND_ROADS, pmt.KIND_PLACES) else 0, name)
 
     def test_round_trip_and_lookup(self):
         for name, make in make_test_vectors.VECTORS.items():

@@ -383,7 +383,52 @@ def seam_rings_text():
     return ("\n".join(lines) + "\n").encode("ascii")
 
 
-VECTORS = {"water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
+SYMBOL_STRINGS = ["osm-symbols", "© OpenStreetMap contributors", "ODbL 1.0", "OpenStreetMap", "2026-09-20",
+                  "test-vectors"]
+STREET_STRINGS = ["osm-street-names", "© OpenStreetMap contributors", "ODbL 1.0", "OpenStreetMap", "2026-09-20",
+                  "test-vectors"]
+
+
+def symbols():
+    """A symbols file (PMT 1.3, layer kind 7): a level for zooms 10 to 11 whose symbols have no names, and a 14-bit
+    level cut at zoom 14 with every class, with and without a name, a marina and its fuel at one point, a name with
+    an accent, a symbol on the tile's last unit, and two classes no display knows (4 and 40)."""
+    wide = [(POINT, 1, None, (100, 200, b"")), (POINT, 2, None, (100, 200, b"")), (POINT, 2, None, (4095, 0, b""))]
+    l0 = {"tile_zoom": 10, "zoom_min": 10, "zoom_max": 11, "coord_bits": 12, "buffer": 0, "tolerance_dm": 0,
+          "grid": {(40, 90): 1}, "tiles": {(162, 362): wide}}
+    close = [(POINT, 1, None, (1600, 3200, b"Harbor Fuel Dock")), (POINT, 1, None, (9000, 9000, b"")),
+             (POINT, 2, None, (1600, 3200, b"Bayview Marina")), (POINT, 2, None, (12000, 500, "Marina Sainte-Hélène".encode())),
+             (POINT, 3, None, (300, 16383, b"")), (POINT, 3, None, (5000, 7000, b"County Road 5 Landing")),
+             (POINT, 4, None, (6000, 7000, b"Corner Gas")), (POINT, 40, None, (7000, 7000, b"Unknown 40"))]
+    l1 = {"tile_zoom": 14, "zoom_min": 15, "zoom_max": 16, "coord_bits": 14, "buffer": 0, "tolerance_dm": 0,
+          "grid": {(40, 90): 1}, "tiles": {(2600, 5800): close}}
+    return dict(layer_kind=pmt.KIND_SYMBOLS, levels=[l0, l1], strings=SYMBOL_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+def street_names():
+    """A street names file (PMT 1.3, layer kind 8): a 16-bit level cut at zoom 12 for zoom 14 with one motorway run,
+    and a 14-bit level cut at zoom 14 with a run of every road class, one name twice in a tile, a run that ends on
+    the tile's edge and goes on in the next tile, a vertical run, a run of three points, a name with an accent, and a
+    class no display knows (7)."""
+    l0 = {"tile_zoom": 12, "zoom_min": 14, "zoom_max": 14, "coord_bits": 16, "buffer": 0, "tolerance_dm": 240,
+          "grid": {(40, 90): 1}, "tiles": {(650, 1450): [(LINE, 1, None, (b"Lakeshore Freeway", [(0, 30000), (65536, 31000)]))]}}
+    a = [(LINE, 1, None, (b"Lakeshore Freeway", [(0, 7500), (16384, 7750)])),
+         (LINE, 2, None, (b"Old Trunk Highway", [(200, 200), (4000, 3900)])),
+         (LINE, 3, None, (b"Main Street", [(8000, 0), (8000, 16384)])),
+         (LINE, 4, None, (b"County Road 5", [(100, 12000), (9000, 12100)])),
+         (LINE, 5, None, ("Rue de l'Église".encode(), [(9000, 12100), (12000, 15000), (16384, 15100)])),
+         (LINE, 6, None, (b"North Washington Avenue", [(2000, 5000), (7000, 5050)])),
+         (LINE, 6, None, (b"North Washington Avenue", [(9000, 5100), (16384, 5200)])),
+         (LINE, 7, None, (b"Unknown 7", [(1000, 1000), (1500, 1000)]))]
+    b = [(LINE, 6, None, (b"North Washington Avenue", [(0, 5200), (6000, 5300)]))]
+    l1 = {"tile_zoom": 14, "zoom_min": 15, "zoom_max": 16, "coord_bits": 14, "buffer": 0, "tolerance_dm": 60,
+          "grid": {(40, 90): 1}, "tiles": {(2600, 5800): a, (2601, 5800): b}}
+    return dict(layer_kind=pmt.KIND_STREETS, levels=[l0, l1], strings=STREET_STRINGS, ids=IDS,
+                build_time=BUILD_TIME, data_time=DATA_TIME)
+
+
+VECTORS = {"symbols": symbols, "street_names": street_names, "water_minimal": water_minimal, "water_levels": water_levels, "zones": zones, "water_seam": water_seam,
            "base_minimal": base_minimal, "zones_shapes": zones_shapes, "roads": roads, "roads_seam": roads_seam,
            "roads_dense": roads_dense, "places": places, "places_dense": places_dense, "lines_full": lines_full, "names_full": names_full, "minor_only": minor_only, "water_lines": water_lines}
 
